@@ -1,6 +1,6 @@
 # momocoder-ggkp
 
-Momocoder GGKP / Smart controller w/ Air Mouse
+Momocoder GGKP / Smart controller w/ Air Mouse 📝 [Blog post](https://anilmaharjan.com.np/blog/momocoder-ggkp-a-diy-smart-controller/)
 ![](https://res.cloudinary.com/anilmaharjan-com-np/image/upload/v1695149918/Blog/1845356405208.png)
 
 ## Hardware components
