@@ -1,4 +1,6 @@
 
+#define U8x8_DO_NOT_SET_WIRE_CLOCK
+#include <U8x8lib.h>
 #include <U8g2lib.h>
 #include <Wire.h>
 
@@ -16,7 +18,7 @@ BLECombo bleCombo("MomoCoderGGKP");
 #include "esp_bt_main.h"   // Additional BLE functionaity
 #include "esp_sleep.h"     // Additional BLE functionaity
 
-// #define USE_AIR_MOUSE
+#define USE_AIR_MOUSE
 
 #ifdef USE_AIR_MOUSE
 #define I2C_GYRO_SCL 1
@@ -102,6 +104,9 @@ void setup(void) {
   delay(2000);
   Serial.println("[INFO]: Serial initialized");
 
+  Wire.begin(I2C_GYRO_SDA, I2C_GYRO_SCL, 100000);
+  Serial.println("[INFO]: Wire initialized");
+
   // Configure buttons as INPUT_PULLUP and attach interrupts
   for (int i = 0; i < NUM_BUTTONS; i++) {
     pinMode(buttonNames[i], INPUT_PULLUP);
@@ -115,7 +120,6 @@ void setup(void) {
 
 #ifdef USE_AIR_MOUSE
   Serial.println("[INFO]: Starting AirMouse");
-  Wire.begin(I2C_GYRO_SDA, I2C_GYRO_SCL, 100000);
 
   i2cData[0] = 7;
   i2cData[1] = 0x00;
@@ -142,6 +146,7 @@ void setup(void) {
 
   Serial.println("[INFO]: Starting Display");
   u8g2.begin();
+  Serial.println("[INFO]: Display Started");
 }
 
 bool mouseEnabled = false;
@@ -225,10 +230,30 @@ void loop(void) {
     pressedButton = -1;
   }
   if (bleCombo.isConnected()) {
-    u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_open_iconic_all_2x_t);
-    printPage(page);
-    u8g2.sendBuffer();
+    if (mouseEnabled) {
+      Serial.println("[INFO]: Reading Gyro");
+      while (i2cRead(0x3B, i2cData, 14))
+        ;
+
+      gyroX = ((i2cData[8] << 8) | i2cData[9]);
+      gyroY = ((i2cData[10] << 8) | i2cData[11]);
+      gyroZ = ((i2cData[12] << 8) | i2cData[13]);
+
+      gyroX = gyroX / MOUSE_SENSITIVITY;
+      gyroY = gyroY / MOUSE_SENSITIVITY;
+      gyroZ = gyroZ / MOUSE_SENSITIVITY;
+
+      if (bleCombo.isConnected()) {
+
+        bleCombo.mouseMove(gyroZ, gyroX + 3);
+      }
+      delay(20);
+
+      u8g2.clearBuffer();
+      u8g2.setFont(u8g2_font_open_iconic_all_2x_t);
+      printPage(page);
+      u8g2.sendBuffer();
+    }
   } else {
     Serial.println("Waiting 5s for Bluetooth connection...");
     delay(5000);

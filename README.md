@@ -36,19 +36,19 @@ Pin numbers (GPIO)
 
 ## Features
 
-Motion Control: Navigate with a wave of your hand, thanks to its integrated gyroscope and accelerometer.
+**Motion Control**: Navigate with a wave of your hand, thanks to its integrated gyroscope and accelerometer.
 
-Seamless Connectivity: Easily connect to Bluetooth devices using Bluetooth Low Energy (BLE).
+**Seamless Connectivity**: Easily connect to Bluetooth devices using Bluetooth Low Energy (BLE).
 
-Powered by ESP32-S3: Experience top-notch performance and efficiency with this microcontroller.
+**Powered by ESP32-S3**: Experience top-notch performance and efficiency with this microcontroller.
 
-Compact .66' OLED Display: The compact OLED screen allows limitless possibilities for the device.
+**Compact .66' OLED Display**: The compact OLED screen allows limitless possibilities for the device.
 
-Compact and Portable: Its tiny form factor makes it perfect for on-the-go use. The PCB is below 3 cm x 5 cm.
+**Compact and Portable**: Its tiny form factor makes it perfect for on-the-go use. The PCB is below 3 cm x 5 cm.
 
-Quick Shortcuts (Macros): Customize your experience with six programmable buttons for shortcuts.
+**Quick Shortcuts (Macros)**: Customize your experience with six programmable buttons for shortcuts.
 
-User-Friendly Configuration: Effortlessly personalize the Air Mouse via a Wi-Fi web interface.
+**User-Friendly Configuration**: Effortlessly personalize the Air Mouse via a Wi-Fi web interface.
 
 ### Other features:
 
