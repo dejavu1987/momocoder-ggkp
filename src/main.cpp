@@ -1,6 +1,9 @@
 #include <Wire.h>
 #include <BLECombo.h>
 #include <keyvals.cpp>
+
+#include "globals.h"
+
 BLECombo bleCombo("MomoCoderGGKP");
 
 #define B_PIN 3
@@ -9,15 +12,16 @@ BLECombo bleCombo("MomoCoderGGKP");
 
 #define USE_NIMBLE
 
-#include "NimBLEBeacon.h" // Additional BLE functionaity using NimBLE
-#include "NimBLEDevice.h" // Additional BLE functionaity using NimBLE
-#include "NimBLEUtils.h"  // Additional BLE functionaity using NimBLE
+#include <NimBLEBeacon.h> // Additional BLE functionaity using NimBLE
+#include <NimBLEDevice.h> // Additional BLE functionaity using NimBLE
+#include <NimBLEUtils.h>  // Additional BLE functionaity using NimBLE
 
-#include "esp_bt_device.h" // Additional BLE functionaity
-#include "esp_bt_main.h"   // Additional BLE functionaity
-#include "esp_sleep.h"     // Additional BLE functionaity
+#include <esp_bt_device.h> // Additional BLE functionaity
+#include <esp_bt_main.h>   // Additional BLE functionaity
+#include <esp_sleep.h>     // Additional BLE functionaity
 
-#include <Display.h>
+#include "Display.h"
+#include "Keypad.h"
 
 #define USE_AIR_MOUSE
 
@@ -37,65 +41,8 @@ BLECombo bleCombo("MomoCoderGGKP");
 
 // AsyncWebServer webserver(80);
 
-#define NUM_BUTTONS 9
-
-unsigned long lastButtonPressTime = 0;
-
-/*
-Input key matrix
-Button names
-+---+---+---+
-| A | UP| B |
-+---+---+---+
-| LT| OK| RT|
-+---+---+---+
-| C | DN| D |
-+---+---+---+
-
-Pin numbers
-+---+---+---+
-|  6|  8| 18|
-+---+---+---+
-|  5| 15| 17|
-+---+---+---+
-|  4|  7| 16|
-+---+---+---+
-*/
-
-#define BTN_LT 5
-#define BTN_RT 17
-#define BTN_UP 8
-#define BTN_DN 7
-#define BTN_A 6
-#define BTN_B 18
-#define BTN_C 4
-#define BTN_D 16
-#define BTN_OK 15
-
-// Create an array of button names
-const int buttonNames[NUM_BUTTONS] = {BTN_LT, BTN_RT, BTN_UP, BTN_DN, BTN_A,
-                                      BTN_B, BTN_C, BTN_D, BTN_OK};
-
-int page = 0;
-
-volatile int pressedButton = -1;
-
 int mouseSensitivity = 300;
 int mouseMoveDelay = 5;
-
-void buttonInterrupt()
-{
-  // Check the state of each button to determine which button was pressed
-  for (int i = 0; i < NUM_BUTTONS; i++)
-  {
-    if (digitalRead(buttonNames[i]) == LOW)
-    {
-      pressedButton = buttonNames[i];
-      break; // Exit the loop when a button is found
-    }
-  }
-  lastButtonPressTime = millis();
-}
 
 /***
  * Pages of icons
@@ -140,7 +87,7 @@ void setup(void)
   Wire.endTransmission(true);
 #endif
 
-  displaySetup();
+  // displaySetup();
 }
 
 bool mouseEnabled = false;
@@ -171,7 +118,7 @@ void printPage(int page)
 void loop(void)
 {
 
-  if (page == 0 || page == 2)
+  if (KEYPAD_PAGE == 0 || KEYPAD_PAGE == 2)
   {
     mouseEnabled = true;
   }
@@ -182,100 +129,19 @@ void loop(void)
 
   if (pressedButton != -1)
   {
-    // A button was pressed; do something based on the pressedButton value
-    switch (pressedButton)
-    {
-    case BTN_LT:
-      // Handle BTN_LT press
-      if (page == 0)
-        bleCombo.mouseClick(MOUSE_LEFT);
-      else if (page == 2)
-      {
-        if (mouseSensitivity > 10)
-          mouseSensitivity -= 10;
-      }
-      else
-        bleCombo.write(KEY_LEFT_ARROW);
-      break;
-    case BTN_RT:
-      if (page == 0)
-        bleCombo.mouseClick(MOUSE_BACK);
-      else if (page == 2)
-        mouseSensitivity += 10;
-      else
-        bleCombo.write(KEY_RIGHT_ARROW);
-      break;
-    case BTN_UP:
-      // Handle BTN_UP press
-      page--;
-      Serial.println("UP ^");
-      break;
-    case BTN_DN:
-      // Handle BTN_DN press
-      page++;
-      Serial.println("DN v");
-      break;
-    case BTN_A:
-      bleCombo.write(KEY_ESC);
-      break;
-    case BTN_B:
-      if (page == 0)
-        scrollEnabled = !scrollEnabled;
-      else
-        bleCombo.write('f');
-      break;
-    case BTN_C:
-      if (page == 0)
-      {
-        dragEnabled = !dragEnabled;
-        if (dragEnabled)
-        {
-          bleCombo.mousePress(MOUSE_LEFT);
-        }
-        else
-        {
-          bleCombo.mouseRelease(MOUSE_LEFT);
-        }
-      }
-      else if (page == 2)
-      {
-        if (mouseMoveDelay > 5)
-          mouseMoveDelay -= 5;
-      }
-      else
-        bleCombo.write(KEY_MEDIA_VOLUME_UP);
-      break;
-    case BTN_D:
-      if (page == 0)
-      {
-        bleCombo.mouseClick(MOUSE_FORWARD);
-      }
-      else if (page == 2)
-        mouseMoveDelay += 5;
-      else
-        bleCombo.write(KEY_MEDIA_VOLUME_DOWN);
-      break;
-    case BTN_OK:
-      if (page == 0)
-      {
-        bleCombo.mouseClick(MOUSE_RIGHT);
-      }
-      else
-        bleCombo.write(KEY_MEDIA_PLAY_PAUSE);
-      break;
-    }
+    handleButtonPress(KEYPAD_PAGE, pressedButton);
 
     // debounce
     delay(200);
 
     // cycle pages
-    if (page < 0)
-      page = 2;
-    else if (page > 2)
-      page = 0;
+    if (KEYPAD_PAGE < 0)
+      KEYPAD_PAGE = 2;
+    else if (KEYPAD_PAGE > 2)
+      KEYPAD_PAGE = 0;
 
     Serial.print("Page: ");
-    Serial.println(page);
+    Serial.println(KEYPAD_PAGE);
     Serial.print("mouseEnabled: ");
     Serial.println(mouseEnabled);
     Serial.print("MRefreshDelay: ");
@@ -301,19 +167,24 @@ void loop(void)
       gyroY = ((i2cData[10] << 8) | i2cData[11]);
       gyroZ = ((i2cData[12] << 8) | i2cData[13]);
 
-      gyroX = (gyroX + 600) / mouseSensitivity;
+      gyroX = (gyroX + 2.5 * mouseSensitivity) / mouseSensitivity;
       gyroY = gyroY / mouseSensitivity;
       gyroZ = gyroZ / mouseSensitivity;
 
       if (bleCombo.isConnected())
       {
-        if (scrollEnabled)
+        if (scrollEnabled && (gyroX || gyroZ))
         {
-          bleCombo.mouseMove(0, 0, gyroX + 3, gyroZ);
-          delay(100);
+          bleCombo.mouseMove(0, 0, gyroX, gyroZ);
+          delay(50);
         }
         else
-          bleCombo.mouseMove(gyroZ, gyroX);
+        {
+          if (gyroX || gyroZ)
+          {
+            bleCombo.mouseMove(gyroZ, gyroX);
+          }
+        }
       }
       delay(mouseMoveDelay);
     }
@@ -325,7 +196,7 @@ void loop(void)
       esp_deep_sleep_start();
     }
 
-    printPage(page);
+    printPage(KEYPAD_PAGE);
   }
   else
   {

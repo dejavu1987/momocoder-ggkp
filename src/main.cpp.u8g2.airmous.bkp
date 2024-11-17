@@ -72,19 +72,22 @@ Pin numbers
 
 // Create an array of button names
 const int buttonNames[NUM_BUTTONS] = {BTN_LT, BTN_RT, BTN_UP, BTN_DN, BTN_A,
-                                      BTN_B,  BTN_C,  BTN_D,  BTN_OK};
+                                      BTN_B, BTN_C, BTN_D, BTN_OK};
 
 U8G2_SSD1306_64X48_ER_F_SW_I2C
 u8g2(U8G2_R0, 1, 2);
 
-int page = 0;
+int KEYPAD_PAGE = 0;
 
 volatile int pressedButton = -1;
 
-void buttonInterrupt() {
+void buttonInterrupt()
+{
   // Check the state of each button to determine which button was pressed
-  for (int i = 0; i < NUM_BUTTONS; i++) {
-    if (digitalRead(buttonNames[i]) == LOW) {
+  for (int i = 0; i < NUM_BUTTONS; i++)
+  {
+    if (digitalRead(buttonNames[i]) == LOW)
+    {
       pressedButton = buttonNames[i];
       break; // Exit the loop when a button is found
     }
@@ -99,7 +102,8 @@ uint16_t pages[3][9] = {{144, 119, 154, 117, 115, 118, 212, 116, 212},
                         {144, 215, 277, 213, 211, 214, 279, 216, 278},
                         {144, 119, 154, 117, 96, 118, 212, 116, 212}};
 
-void setup(void) {
+void setup(void)
+{
   Serial.begin(115200);
   delay(2000);
   Serial.println("[INFO]: Serial initialized");
@@ -108,7 +112,8 @@ void setup(void) {
   Serial.println("[INFO]: Wire initialized");
 
   // Configure buttons as INPUT_PULLUP and attach interrupts
-  for (int i = 0; i < NUM_BUTTONS; i++) {
+  for (int i = 0; i < NUM_BUTTONS; i++)
+  {
     pinMode(buttonNames[i], INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(buttonNames[i]), buttonInterrupt,
                     FALLING);
@@ -154,12 +159,15 @@ bool mouseEnabled = false;
 /**
  * @brief Function for printing 3x3 icon menu
  */
-void printPage(int page) {
+void printPage(int page)
+{
   int x = 0;
   int y = 16;
 
-  for (int row = 0; row < 3; row++) {
-    for (int col = 0; col < 3; col++) {
+  for (int row = 0; row < 3; row++)
+  {
+    for (int col = 0; col < 3; col++)
+    {
       u8g2.drawGlyph(x, y, pages[page][row * 3 + col]);
       x += 21; // Increment the x-coordinate for the next column
     }
@@ -168,18 +176,24 @@ void printPage(int page) {
   }
 }
 
-void loop(void) {
+void loop(void)
+{
 
-  if (page == 0) {
+  if (KEYPAD_PAGE == 0)
+  {
     mouseEnabled = true;
-  } else {
+  }
+  else
+  {
     mouseEnabled = false;
     u8g2.setPowerSave(false);
   }
 
-  if (pressedButton != -1) {
+  if (pressedButton != -1)
+  {
     // A button was pressed; do something based on the pressedButton value
-    switch (pressedButton) {
+    switch (pressedButton)
+    {
     case BTN_LT:
       // Handle BTN_LT press
       break;
@@ -188,12 +202,12 @@ void loop(void) {
       break;
     case BTN_UP:
       // Handle BTN_UP press
-      page--;
+      KEYPAD_PAGE--;
       Serial.println("UP ^");
       break;
     case BTN_DN:
       // Handle BTN_DN press
-      page++;
+      KEYPAD_PAGE++;
       Serial.println("DN v");
       break;
     case BTN_A:
@@ -216,21 +230,23 @@ void loop(void) {
     delay(200);
 
     // cycle pages
-    if (page < 0)
-      page = 2;
-    else if (page > 2)
-      page = 0;
+    if (KEYPAD_PAGE < 0)
+      KEYPAD_PAGE = 2;
+    else if (KEYPAD_PAGE > 2)
+      KEYPAD_PAGE = 0;
 
     Serial.print("Page: ");
-    Serial.println(page);
+    Serial.println(KEYPAD_PAGE);
     Serial.print("mouseEnabled: ");
     Serial.println(mouseEnabled);
 
     // Reset the pressedButton value
     pressedButton = -1;
   }
-  if (bleCombo.isConnected()) {
-    if (mouseEnabled) {
+  if (bleCombo.isConnected())
+  {
+    if (mouseEnabled)
+    {
       Serial.println("[INFO]: Reading Gyro");
       while (i2cRead(0x3B, i2cData, 14))
         ;
@@ -243,7 +259,8 @@ void loop(void) {
       gyroY = gyroY / MOUSE_SENSITIVITY;
       gyroZ = gyroZ / MOUSE_SENSITIVITY;
 
-      if (bleCombo.isConnected()) {
+      if (bleCombo.isConnected())
+      {
 
         bleCombo.mouseMove(gyroZ, gyroX + 3);
       }
@@ -251,10 +268,12 @@ void loop(void) {
 
       u8g2.clearBuffer();
       u8g2.setFont(u8g2_font_open_iconic_all_2x_t);
-      printPage(page);
+      printPage(KEYPAD_PAGE);
       u8g2.sendBuffer();
     }
-  } else {
+  }
+  else
+  {
     Serial.println("Waiting 5s for Bluetooth connection...");
     delay(5000);
   }
