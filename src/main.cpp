@@ -1,5 +1,5 @@
-#include <Wire.h>
 #include <BLECombo.h>
+#include <Wire.h>
 #include <keyvals.cpp>
 
 #include "globals.h"
@@ -52,8 +52,7 @@ uint16_t pages[3][9] = {{144, 119, 154, 117, 115, 118, 212, 116, 212},
                         {144, 215, 277, 213, 211, 214, 279, 216, 278},
                         {144, 119, 154, 117, 96, 118, 212, 116, 212}};
 
-void setup(void)
-{
+void setup(void) {
   Serial.begin(115200);
   delay(2000);
   Serial.println("[INFO]: Serial initialized");
@@ -64,8 +63,7 @@ void setup(void)
   pinMode(G_PIN, OUTPUT);
 
   // Configure buttons as INPUT_PULLUP and attach interrupts
-  for (int i = 0; i < NUM_BUTTONS; i++)
-  {
+  for (int i = 0; i < NUM_BUTTONS; i++) {
     pinMode(buttonNames[i], INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(buttonNames[i]), buttonInterrupt,
                     FALLING);
@@ -97,15 +95,12 @@ bool dragEnabled = false;
 /**
  * @brief Function for printing 3x3 icon menu
  */
-void printPage(int page)
-{
+void printPage(int page) {
   int x = 0;
   int y = 16;
 
-  for (int row = 0; row < 3; row++)
-  {
-    for (int col = 0; col < 3; col++)
-    {
+  for (int row = 0; row < 3; row++) {
+    for (int col = 0; col < 3; col++) {
       // u8g2.drawGlyph(x, y, pages[page][row * 3 + col]);
       // Implement some drawing functions
       x += 21; // Increment the x-coordinate for the next column
@@ -115,20 +110,15 @@ void printPage(int page)
   }
 }
 
-void loop(void)
-{
+void loop(void) {
 
-  if (KEYPAD_PAGE == 0 || KEYPAD_PAGE == 2)
-  {
+  if (KEYPAD_PAGE == 0 || KEYPAD_PAGE == 2) {
     mouseEnabled = true;
-  }
-  else
-  {
+  } else {
     mouseEnabled = false;
   }
 
-  if (pressedButton != -1)
-  {
+  if (pressedButton != -1) {
     handleButtonPress(KEYPAD_PAGE, pressedButton);
 
     // debounce
@@ -152,14 +142,12 @@ void loop(void)
     // Reset the pressedButton value
     pressedButton = -1;
   }
-  if (bleCombo.isConnected())
-  {
+  if (bleCombo.isConnected()) {
     analogWrite(B_PIN, 0);
     analogWrite(R_PIN, 0);
     analogWrite(G_PIN, 55);
 
-    if (mouseEnabled)
-    {
+    if (mouseEnabled) {
       while (i2cRead(0x3B, i2cData, 14))
         ;
 
@@ -171,17 +159,12 @@ void loop(void)
       gyroY = gyroY / mouseSensitivity;
       gyroZ = gyroZ / mouseSensitivity;
 
-      if (bleCombo.isConnected())
-      {
-        if (scrollEnabled && (gyroX || gyroZ))
-        {
+      if (bleCombo.isConnected()) {
+        if (scrollEnabled && (gyroX || gyroZ)) {
           bleCombo.mouseMove(0, 0, gyroX, gyroZ);
           delay(50);
-        }
-        else
-        {
-          if (gyroX || gyroZ)
-          {
+        } else {
+          if (gyroX || gyroZ) {
             bleCombo.mouseMove(gyroZ, gyroX);
           }
         }
@@ -189,17 +172,14 @@ void loop(void)
       delay(mouseMoveDelay);
     }
     // Check if 30 seconds have passed since the last button press
-    if (millis() - lastButtonPressTime >= 60000UL)
-    {
+    if (millis() - lastButtonPressTime >= 60000UL) {
       Serial.println("Going to sleep...");
       delay(2000);
       esp_deep_sleep_start();
     }
 
     printPage(KEYPAD_PAGE);
-  }
-  else
-  {
+  } else {
     Serial.println("Waiting 5s for Bluetooth connection...");
     // Set the LED to green with varying intensity
     analogWrite(B_PIN, 0);  // Turn off red

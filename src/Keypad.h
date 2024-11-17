@@ -1,5 +1,5 @@
-#include <BLECombo.h>
 #include "globals.h"
+#include <BLECombo.h>
 
 #define NUM_BUTTONS 9
 
@@ -38,19 +38,16 @@ Pin numbers
 
 // Create an array of button names
 const int buttonNames[NUM_BUTTONS] = {BTN_LT, BTN_RT, BTN_UP, BTN_DN, BTN_A,
-                                      BTN_B, BTN_C, BTN_D, BTN_OK};
+                                      BTN_B,  BTN_C,  BTN_D,  BTN_OK};
 
 int KEYPAD_PAGE = 0;
 
 volatile int pressedButton = -1;
 
-void buttonInterrupt()
-{
+void buttonInterrupt() {
   // Check the state of each button to determine which button was pressed
-  for (int i = 0; i < NUM_BUTTONS; i++)
-  {
-    if (digitalRead(buttonNames[i]) == LOW)
-    {
+  for (int i = 0; i < NUM_BUTTONS; i++) {
+    if (digitalRead(buttonNames[i]) == LOW) {
       pressedButton = buttonNames[i];
       break; // Exit the loop when a button is found
     }
@@ -58,10 +55,8 @@ void buttonInterrupt()
   lastButtonPressTime = millis();
 }
 
-void handleButtonPressPage0(int pressedButton)
-{
-  switch (pressedButton)
-  {
+void handleButtonPressPage0(int pressedButton) {
+  switch (pressedButton) {
   case BTN_LT:
     bleCombo.mouseClick(MOUSE_LEFT);
     break;
@@ -83,12 +78,9 @@ void handleButtonPressPage0(int pressedButton)
 
   case BTN_C:
     dragEnabled = !dragEnabled;
-    if (dragEnabled)
-    {
+    if (dragEnabled) {
       bleCombo.mousePress(MOUSE_LEFT);
-    }
-    else
-    {
+    } else {
       bleCombo.mouseRelease(MOUSE_LEFT);
     }
     break;
@@ -103,10 +95,8 @@ void handleButtonPressPage0(int pressedButton)
   }
 }
 
-void handleButtonPressPage2(int pressedButton)
-{
-  switch (pressedButton)
-  {
+void handleButtonPressPage2(int pressedButton) {
+  switch (pressedButton) {
   case BTN_LT:
     if (mouseSensitivity > 10)
       mouseSensitivity -= 10;
@@ -139,10 +129,8 @@ void handleButtonPressPage2(int pressedButton)
   }
 }
 
-void handleButtonPressDefault(int pressedButton)
-{
-  switch (pressedButton)
-  {
+void handleButtonPressDefault(int pressedButton) {
+  switch (pressedButton) {
   case BTN_LT:
     bleCombo.write(KEY_LEFT_ARROW);
     break;
@@ -173,12 +161,9 @@ void handleButtonPressDefault(int pressedButton)
   }
 }
 
-void handleButtonPress(int page, int pressedButton)
-{
-  if (pressedButton != -1)
-  {
-    switch (page)
-    {
+void handleButtonPress(int page, int pressedButton) {
+  if (pressedButton != -1) {
+    switch (page) {
     case 0:
       handleButtonPressPage0(pressedButton);
       break;
