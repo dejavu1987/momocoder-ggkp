@@ -3,7 +3,7 @@
 
 #define NUM_BUTTONS 9
 
-unsigned long lastButtonPressTime = 0;
+volatile unsigned long lastButtonPressTime = 0;
 
 /*
 Input key matrix
@@ -44,7 +44,7 @@ int KEYPAD_PAGE = 0;
 
 volatile int pressedButton = -1;
 
-void buttonInterrupt() {
+void IRAM_ATTR buttonInterrupt() {
   // Check the state of each button to determine which button was pressed
   for (int i = 0; i < NUM_BUTTONS; i++) {
     if (digitalRead(buttonNames[i]) == LOW) {
