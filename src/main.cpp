@@ -74,22 +74,36 @@ void setLed(uint8_t r, uint8_t g, uint8_t b) {
 //   LT | OK | RT
 //   C  | DN | D
 const uint16_t pages[NUM_PAGES][ICONS_PER_PAGE] = {
-    // Page::Mouse — air-mouse with click bindings
-    {ICON_DELETE, ICON_CHEVRON_TOP,    ICON_ELEVATOR,
-     ICON_CHEVRON_LEFT, ICON_CHECK,    ICON_CHEVRON_RIGHT,
-     ICON_MEDIA_RECORD, ICON_CHEVRON_BOTTOM, ICON_MEDIA_RECORD},
-    // Page::Media — keyboard / media keys
-    {ICON_DELETE,             ICON_MEDIA_STEP_BACKWARD, ICON_VOLUME_HIGH,
-     ICON_MEDIA_SKIP_BACKWARD, ICON_MEDIA_PLAY,         ICON_MEDIA_SKIP_FORWARD,
-     ICON_VOLUME_OFF,         ICON_MEDIA_STEP_FORWARD,  ICON_VOLUME_LOW},
-    // Page::Settings — sensitivity / move-delay tuning
-    {ICON_DELETE, ICON_CHEVRON_TOP,    ICON_ELEVATOR,
-     ICON_CHEVRON_LEFT, ICON_BOLT,     ICON_CHEVRON_RIGHT,
-     ICON_MEDIA_RECORD, ICON_CHEVRON_BOTTOM, ICON_MEDIA_RECORD},
-    // Page::Pairing — BLE pairing trigger
-    {ICON_DELETE, ICON_CHEVRON_TOP,    ICON_ELEVATOR,
-     ICON_CHEVRON_LEFT, ICON_RSS_ALT,  ICON_CHEVRON_RIGHT,
-     ICON_MEDIA_RECORD, ICON_CHEVRON_BOTTOM, ICON_MEDIA_RECORD}};
+    // Page::Mouse — air mouse with click bindings.
+    //  ESC          UP→nav         scroll-toggle
+    //  L-click      R-click(menu)  browser-back
+    //  drag-toggle  DN→nav         browser-forward
+    {ICON_CIRCLE_X,  ICON_CHEVRON_TOP,    ICON_LOOP,
+     ICON_TARGET,    ICON_MENU,           ICON_ACTION_UNDO,
+     ICON_MOVE,      ICON_CHEVRON_BOTTOM, ICON_ACTION_REDO},
+
+    // Page::Media — keyboard / media keys.
+    //  ESC        UP→nav   fullscreen
+    //  prev       play     next
+    //  vol+       DN→nav   vol-
+    {ICON_CIRCLE_X,            ICON_CHEVRON_TOP,    ICON_FULLSCREEN_ENTER,
+     ICON_MEDIA_SKIP_BACKWARD, ICON_MEDIA_PLAY,     ICON_MEDIA_SKIP_FORWARD,
+     ICON_VOLUME_HIGH,         ICON_CHEVRON_BOTTOM, ICON_VOLUME_LOW},
+
+    // Page::Settings — air-mouse tuning. The bottom row is replaced by a
+    // live "S:NNN D:NN" overlay in renderPage(), so those glyphs aren't shown.
+    //  ESC        UP→nav    fullscreen
+    //  sens-      play      sens+
+    //  delay-     DN→nav    delay+
+    {ICON_CIRCLE_X,  ICON_CHEVRON_TOP,    ICON_FULLSCREEN_ENTER,
+     ICON_MINUS,     ICON_MEDIA_PLAY,     ICON_PLUS,
+     ICON_BOLT,      ICON_CHEVRON_BOTTOM, ICON_TIMER},
+
+    // Page::Pairing — only OK/UP/DN do anything; ICON_BAN flags the
+    // inactive slots so the user knows nothing else fires.
+    {ICON_BAN,       ICON_CHEVRON_TOP,    ICON_BAN,
+     ICON_BAN,       ICON_BLUETOOTH,      ICON_BAN,
+     ICON_BAN,       ICON_CHEVRON_BOTTOM, ICON_BAN}};
 
 bool pairingMode = false;
 
