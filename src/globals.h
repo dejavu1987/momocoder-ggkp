@@ -23,6 +23,17 @@ inline Page &operator--(Page &p) {
   return p;
 }
 
+enum class ConnState : int {
+  Booting,      // first ~2 s of setup(), splash visible
+  Connecting,   // has bonds, advertising, waiting for known host
+  Discoverable, // no bonds OR user pressed OK on Pairing page
+  Connected,    // bleCombo.isConnected() is true
+};
+
+extern ConnState connState;
+
+void transitionTo(ConnState newState);
+
 extern BLECombo bleCombo;
 extern bool mouseEnabled;
 extern bool scrollEnabled;

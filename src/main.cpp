@@ -105,6 +105,17 @@ const uint16_t pages[NUM_PAGES][ICONS_PER_PAGE] = {
      ICON_BAN,       ICON_BLUETOOTH,      ICON_BAN,
      ICON_BAN,       ICON_CHEVRON_BOTTOM, ICON_BAN}};
 
+ConnState connState = ConnState::Booting;
+
+void transitionTo(ConnState newState) {
+  if (connState == newState) return;
+  Serial.print("[STATE] ");
+  Serial.print(static_cast<int>(connState));
+  Serial.print(" -> ");
+  Serial.println(static_cast<int>(newState));
+  connState = newState;
+}
+
 bool pairingMode = false;
 
 // Drop the active connection (if any) and re-advertise so a new host can pair.
