@@ -40,6 +40,22 @@ BLECombo bleCombo("MomoCoderGGKP");
 
 // AsyncWebServer webserver(80);
 
+// Loop timing
+constexpr unsigned long DEBOUNCE_MS = 200;
+constexpr unsigned long IDLE_SLEEP_MS = 60000UL;
+constexpr unsigned long PAIRING_BLINK_MS = 150;
+constexpr unsigned long DISCONNECT_TIMEOUT_MS = 1000;
+constexpr unsigned long DEEP_SLEEP_HOLD_MS = 2000;
+constexpr unsigned long SCROLL_PAUSE_MS = 50;
+
+// LED brightness presets (0-255 PWM duty)
+constexpr uint8_t LED_OFF = 0;
+constexpr uint8_t LED_CONNECTED = 55;
+constexpr uint8_t LED_PAIRING_BLINK = 80;
+constexpr uint8_t LED_WAIT_R = 40;
+constexpr uint8_t LED_WAIT_G = 30;
+constexpr uint8_t LED_WAIT_B = 20;
+
 int mouseSensitivity = 300;
 int mouseMoveDelay = 5;
 
@@ -62,7 +78,7 @@ void enterPairingMode() {
     server->disconnect(info.getConnHandle());
     // disconnect is async — block briefly so the loop's isConnected check
     // doesn't immediately clear pairingMode before the peer is actually gone.
-    unsigned long deadline = millis() + 1000;
+    unsigned long deadline = millis() + DISCONNECT_TIMEOUT_MS;
     while (server->getConnectedCount() > 0 && millis() < deadline) {
       delay(20);
     }
@@ -142,8 +158,7 @@ void loop(void) {
   if (pressedButton != -1) {
     handleButtonPress(KEYPAD_PAGE, pressedButton);
 
-    // debounce
-    delay(200);
+    delay(DEBOUNCE_MS);
 
     // cycle pages
     if (KEYPAD_PAGE < 0)
@@ -168,9 +183,9 @@ void loop(void) {
       pairingMode = false;
       Serial.println("[INFO]: Paired, exiting pairing mode");
     }
-    analogWrite(B_PIN, 0);
-    analogWrite(R_PIN, 0);
-    analogWrite(G_PIN, 55);
+    analogWrite(B_PIN, LED_OFF);
+    analogWrite(R_PIN, LED_OFF);
+    analogWrite(G_PIN, LED_CONNECTED);
 
     if (mouseEnabled) {
       while (i2cRead(0x3B, i2cData, 14))
@@ -184,53 +199,43 @@ void loop(void) {
 
       if (scrollEnabled && (gyroX || gyroZ)) {
         bleCombo.mouseMove(0, 0, gyroX, gyroZ);
-        delay(50);
+        delay(SCROLL_PAUSE_MS);
       } else if (gyroX || gyroZ) {
         bleCombo.mouseMove(gyroZ, gyroX);
       }
       delay(mouseMoveDelay);
     }
-    // Sleep after 60 s of no button press
-    if (millis() - lastButtonPressTime >= 60000UL) {
+    if (millis() - lastButtonPressTime >= IDLE_SLEEP_MS) {
       Serial.println("Going to sleep...");
-      delay(2000);
+      delay(DEEP_SLEEP_HOLD_MS);
       esp_deep_sleep_start();
     }
   } else if (pairingMode) {
     static unsigned long lastBlink = 0;
     static bool ledOn = false;
-    if (millis() - lastBlink >= 150) {
+    if (millis() - lastBlink >= PAIRING_BLINK_MS) {
       ledOn = !ledOn;
-      analogWrite(R_PIN, 0);
-      analogWrite(G_PIN, 0);
-      analogWrite(B_PIN, ledOn ? 80 : 0);
+      analogWrite(R_PIN, LED_OFF);
+      analogWrite(G_PIN, LED_OFF);
+      analogWrite(B_PIN, ledOn ? LED_PAIRING_BLINK : LED_OFF);
       lastBlink = millis();
     }
   } else {
-    Serial.println("Waiting 5s for Bluetooth connection...");
-    // Set the LED to green with varying intensity
-    analogWrite(B_PIN, 0);  // Turn off red
-    analogWrite(R_PIN, 40); // Set green to maximum intensity
-    analogWrite(G_PIN, 0);  // Turn off blue
+    Serial.println("Waiting for Bluetooth connection...");
+    analogWrite(B_PIN, LED_OFF);
+    analogWrite(R_PIN, LED_WAIT_R);
+    analogWrite(G_PIN, LED_OFF);
+    delay(1000);
 
-    // Add a delay to keep the LED green for a while
-    delay(1000); // Adjust the delay duration as needed
+    analogWrite(B_PIN, LED_OFF);
+    analogWrite(R_PIN, LED_OFF);
+    analogWrite(G_PIN, LED_WAIT_G);
+    delay(1000);
 
-    // Turn off the LED
-    analogWrite(B_PIN, 0);
-    analogWrite(R_PIN, 0);
-    analogWrite(G_PIN, 30);
-
-    // Add a delay to keep the LED green for a while
-    delay(1000); // Adjust the delay duration as needed
-
-    // Turn off the LED
-    analogWrite(B_PIN, 20);
-    analogWrite(R_PIN, 0);
-    analogWrite(G_PIN, 0);
-
-    // Add a delay before repeating the process
-    delay(1000); // Adjust the delay duration as needed
+    analogWrite(B_PIN, LED_WAIT_B);
+    analogWrite(R_PIN, LED_OFF);
+    analogWrite(G_PIN, LED_OFF);
+    delay(1000);
   }
 
   printPage(KEYPAD_PAGE);
