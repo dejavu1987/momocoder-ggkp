@@ -43,14 +43,12 @@ BLECombo bleCombo("MomoCoderGGKP");
 int mouseSensitivity = 300;
 int mouseMoveDelay = 5;
 
-/***
- * Pages of icons
- * This should be stored in flash memory
- */
-uint16_t pages[4][9] = {{144, 119, 154, 117, 115, 118, 212, 116, 212},
-                        {144, 215, 277, 213, 211, 214, 279, 216, 278},
-                        {144, 119, 154, 117, 96, 118, 212, 116, 212},
-                        {144, 119, 154, 117, 247, 118, 212, 116, 212}};
+// Glyph IDs from u8g2_font_open_iconic_all_2x_t for each page's 3x3 grid.
+const uint16_t pages[NUM_PAGES][ICONS_PER_PAGE] = {
+    {144, 119, 154, 117, 115, 118, 212, 116, 212},
+    {144, 215, 277, 213, 211, 214, 279, 216, 278},
+    {144, 119, 154, 117, 96, 118, 212, 116, 212},
+    {144, 119, 154, 117, 247, 118, 212, 116, 212}};
 
 bool pairingMode = false;
 
@@ -149,8 +147,8 @@ void loop(void) {
 
     // cycle pages
     if (KEYPAD_PAGE < 0)
-      KEYPAD_PAGE = 3;
-    else if (KEYPAD_PAGE > 3)
+      KEYPAD_PAGE = MAX_PAGE;
+    else if (KEYPAD_PAGE > MAX_PAGE)
       KEYPAD_PAGE = 0;
 
     Serial.print("Page: ");

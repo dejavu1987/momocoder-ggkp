@@ -2,6 +2,10 @@
 #ifndef GLOBALS_H
 #define GLOBALS_H
 
+constexpr int NUM_PAGES = 4;
+constexpr int MAX_PAGE = NUM_PAGES - 1;
+constexpr int ICONS_PER_PAGE = 9; // 3x3 grid, also matches NUM_BUTTONS
+
 extern BLECombo bleCombo;
 extern bool mouseEnabled;
 extern bool scrollEnabled;
