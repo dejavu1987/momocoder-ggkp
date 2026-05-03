@@ -96,14 +96,10 @@ void setup(void) {
   Wire.begin(I2C_GYRO_SDA, I2C_GYRO_SCL);
 
 #ifdef USE_AIR_MOUSE
-  const int MPU = 0x68; // MPU6050 I2C address
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_6, LOW);
   Serial.println("[INFO]: Starting AirMouse");
-  // Initialize comunication
-  Wire.beginTransmission(MPU); // Start communication with MPU6050 // MPU=0x68
-  Wire.write(0x6B);            // Talk to the register 6B
-  Wire.write(0x00);            // Make reset - place a 0 into the 6B register
-  Wire.endTransmission(true);
+  // Wake the MPU6050 by clearing the SLEEP bit in PWR_MGMT_1 (0x6B).
+  i2cWrite2(0x6B, 0x00, true);
 #endif
 
   displaySetup(I2C_GYRO_SDA, I2C_GYRO_SCL);
