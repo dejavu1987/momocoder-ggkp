@@ -202,8 +202,6 @@ void loop(void) {
       delay(2000);
       esp_deep_sleep_start();
     }
-
-    printPage(KEYPAD_PAGE);
   } else if (pairingMode) {
     static unsigned long lastBlink = 0;
     static bool ledOn = false;
@@ -240,4 +238,6 @@ void loop(void) {
     // Add a delay before repeating the process
     delay(1000); // Adjust the delay duration as needed
   }
+
+  printPage(KEYPAD_PAGE);
 }
