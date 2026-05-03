@@ -204,7 +204,7 @@ void loop(void) {
       }
       delay(mouseMoveDelay);
     }
-    // Check if 30 seconds have passed since the last button press
+    // Sleep after 60 s of no button press
     if (millis() - lastButtonPressTime >= 60000UL) {
       Serial.println("Going to sleep...");
       delay(2000);
