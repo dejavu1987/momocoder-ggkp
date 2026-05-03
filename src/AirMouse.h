@@ -1,8 +1,7 @@
 #include <Wire.h>
 #include <stdint.h>
 
-uint8_t data[6];
-int16_t gyroX, gyroY, gyroZ;
+int16_t gyroX, gyroZ;
 
 uint8_t i2cData[14];
 

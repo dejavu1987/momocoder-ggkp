@@ -10,8 +10,6 @@ BLECombo bleCombo("MomoCoderGGKP");
 #define R_PIN 45
 #define G_PIN 47
 
-#define USE_NIMBLE
-
 #include <NimBLEBeacon.h> // Additional BLE functionaity using NimBLE
 #include <NimBLEDevice.h> // Additional BLE functionaity using NimBLE
 #include <NimBLEUtils.h>  // Additional BLE functionaity using NimBLE
@@ -185,22 +183,16 @@ void loop(void) {
         ;
 
       gyroX = ((i2cData[8] << 8) | i2cData[9]);
-      gyroY = ((i2cData[10] << 8) | i2cData[11]);
       gyroZ = ((i2cData[12] << 8) | i2cData[13]);
 
       gyroX = (gyroX + 2.5 * mouseSensitivity) / mouseSensitivity;
-      gyroY = gyroY / mouseSensitivity;
       gyroZ = gyroZ / mouseSensitivity;
 
-      if (bleCombo.isConnected()) {
-        if (scrollEnabled && (gyroX || gyroZ)) {
-          bleCombo.mouseMove(0, 0, gyroX, gyroZ);
-          delay(50);
-        } else {
-          if (gyroX || gyroZ) {
-            bleCombo.mouseMove(gyroZ, gyroX);
-          }
-        }
+      if (scrollEnabled && (gyroX || gyroZ)) {
+        bleCombo.mouseMove(0, 0, gyroX, gyroZ);
+        delay(50);
+      } else if (gyroX || gyroZ) {
+        bleCombo.mouseMove(gyroZ, gyroX);
       }
       delay(mouseMoveDelay);
     }
