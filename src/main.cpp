@@ -358,7 +358,11 @@ void loop(void) {
   mouseEnabled = (currentPage == Page::Mouse || currentPage == Page::Settings);
 
   if (pressedButton != -1) {
-    handleButtonPress(currentPage, pressedButton);
+    if (connState == ConnState::Connected) {
+      handleButtonPress(currentPage, pressedButton);
+    } else {
+      handleButtonPressDisconnected(pressedButton);
+    }
     delay(DEBOUNCE_MS);
 
     Serial.print("Page: ");

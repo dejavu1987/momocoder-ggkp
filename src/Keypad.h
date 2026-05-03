@@ -45,5 +45,6 @@ extern volatile int pressedButton;
 
 void IRAM_ATTR buttonInterrupt();
 void handleButtonPress(Page page, int pressedButton);
+void handleButtonPressDisconnected(int pressedButton);
 
 #endif // KEYPAD_H

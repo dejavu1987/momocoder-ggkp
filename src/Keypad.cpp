@@ -142,6 +142,20 @@ static void handleButtonPressPage3(int pressedButton) {
   }
 }
 
+void handleButtonPressDisconnected(int pressedButton) {
+  if (connState == ConnState::Connecting) {
+    switch (pressedButton) {
+    case BTN_OK:
+      enterPairingMode();
+      break;
+    case BTN_A:
+      forgetAllBonds();
+      break;
+    }
+  }
+  // ConnState::Discoverable: every button is a no-op.
+}
+
 void handleButtonPress(Page page, int pressedButton) {
   if (pressedButton == -1) return;
   switch (page) {
