@@ -1,9 +1,9 @@
-#include "globals.h"
-#include <BLECombo.h>
+#ifndef KEYPAD_H
+#define KEYPAD_H
+
+#include <Arduino.h>
 
 #define NUM_BUTTONS 9
-
-volatile unsigned long lastButtonPressTime = 0;
 
 /*
 Input key matrix
@@ -36,160 +36,12 @@ Pin numbers
 #define BTN_D 16
 #define BTN_OK 15
 
-// Create an array of button names
-const int buttonNames[NUM_BUTTONS] = {BTN_LT, BTN_RT, BTN_UP, BTN_DN, BTN_A,
-                                      BTN_B,  BTN_C,  BTN_D,  BTN_OK};
+extern const int buttonNames[NUM_BUTTONS];
+extern volatile unsigned long lastButtonPressTime;
+extern int KEYPAD_PAGE;
+extern volatile int pressedButton;
 
-int KEYPAD_PAGE = 0;
+void IRAM_ATTR buttonInterrupt();
+void handleButtonPress(int page, int pressedButton);
 
-volatile int pressedButton = -1;
-
-void IRAM_ATTR buttonInterrupt() {
-  // Check the state of each button to determine which button was pressed
-  for (int i = 0; i < NUM_BUTTONS; i++) {
-    if (digitalRead(buttonNames[i]) == LOW) {
-      pressedButton = buttonNames[i];
-      break; // Exit the loop when a button is found
-    }
-  }
-  lastButtonPressTime = millis();
-}
-
-void handleButtonPressPage0(int pressedButton) {
-  switch (pressedButton) {
-  case BTN_LT:
-    bleCombo.mouseClick(MOUSE_LEFT);
-    break;
-  case BTN_RT:
-    bleCombo.mouseClick(MOUSE_BACK);
-    break;
-  case BTN_UP:
-    KEYPAD_PAGE--;
-    break;
-  case BTN_DN:
-    KEYPAD_PAGE++;
-    break;
-  case BTN_A:
-    bleCombo.write(KEY_ESC);
-    break;
-  case BTN_B:
-    scrollEnabled = !scrollEnabled;
-    break;
-
-  case BTN_C:
-    dragEnabled = !dragEnabled;
-    if (dragEnabled) {
-      bleCombo.mousePress(MOUSE_LEFT);
-    } else {
-      bleCombo.mouseRelease(MOUSE_LEFT);
-    }
-    break;
-
-  case BTN_D:
-    bleCombo.mouseClick(MOUSE_FORWARD);
-    break;
-
-  case BTN_OK:
-    bleCombo.mouseClick(MOUSE_RIGHT);
-    break;
-  }
-}
-
-void handleButtonPressPage2(int pressedButton) {
-  switch (pressedButton) {
-  case BTN_LT:
-    if (mouseSensitivity > 10)
-      mouseSensitivity -= 10;
-    break;
-  case BTN_RT:
-    mouseSensitivity += 10;
-    break;
-  case BTN_UP:
-    KEYPAD_PAGE--;
-    break;
-  case BTN_DN:
-    KEYPAD_PAGE++;
-    break;
-  case BTN_A:
-    bleCombo.write(KEY_ESC);
-    break;
-  case BTN_B:
-    bleCombo.write('f');
-    break;
-  case BTN_C:
-    if (mouseMoveDelay > 5)
-      mouseMoveDelay -= 5;
-    break;
-  case BTN_D:
-    mouseMoveDelay += 5;
-    break;
-  case BTN_OK:
-    bleCombo.write(KEY_MEDIA_PLAY_PAUSE);
-    break;
-  }
-}
-
-void handleButtonPressPage3(int pressedButton) {
-  switch (pressedButton) {
-  case BTN_OK:
-    enterPairingMode();
-    break;
-  case BTN_UP:
-    KEYPAD_PAGE--;
-    break;
-  case BTN_DN:
-    KEYPAD_PAGE++;
-    break;
-  }
-}
-
-void handleButtonPressPage1(int pressedButton) {
-  switch (pressedButton) {
-  case BTN_LT:
-    bleCombo.write(KEY_LEFT_ARROW);
-    break;
-  case BTN_RT:
-    bleCombo.write(KEY_RIGHT_ARROW);
-    break;
-  case BTN_UP:
-    KEYPAD_PAGE--;
-    break;
-  case BTN_DN:
-    KEYPAD_PAGE++;
-    break;
-  case BTN_A:
-    bleCombo.write(KEY_ESC);
-    break;
-  case BTN_B:
-    bleCombo.write('f');
-    break;
-  case BTN_C:
-    bleCombo.write(KEY_MEDIA_VOLUME_UP);
-    break;
-  case BTN_D:
-    bleCombo.write(KEY_MEDIA_VOLUME_DOWN);
-    break;
-  case BTN_OK:
-    bleCombo.write(KEY_MEDIA_PLAY_PAUSE);
-    break;
-  }
-}
-
-void handleButtonPress(int page, int pressedButton) {
-  if (pressedButton != -1) {
-    switch (page) {
-    case 0:
-      handleButtonPressPage0(pressedButton);
-      break;
-    case 1:
-      handleButtonPressPage1(pressedButton);
-      break;
-    case 2:
-      handleButtonPressPage2(pressedButton);
-      break;
-    case 3:
-      handleButtonPressPage3(pressedButton);
-      break;
-    }
-  }
-}
+#endif // KEYPAD_H

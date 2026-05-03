@@ -1,6 +1,7 @@
-#include <BLECombo.h>
 #ifndef GLOBALS_H
 #define GLOBALS_H
+
+#include <BLECombo.h>
 
 constexpr int NUM_PAGES = 4;
 constexpr int MAX_PAGE = NUM_PAGES - 1;
