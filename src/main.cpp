@@ -145,6 +145,12 @@ void setup(void) {
   Serial.println("[INFO]: Keypad initialized");
 
   bleCombo.begin();
+  // BLECombo defaults to setSecurityAuth(bond=true, mitm=true, sc=true) and
+  // never sets IO capability, so NimBLE falls back to DisplayOnly. macOS then
+  // expects a passkey workflow this keypad can't satisfy, and pairing fails
+  // intermittently. HID devices without a display want Just Works pairing.
+  NimBLEDevice::setSecurityAuth(/*bond=*/true, /*mitm=*/false, /*sc=*/true);
+  NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
   Serial.println("[INFO]: Starting BLE");
   Wire.begin(I2C_SDA, I2C_SCL);
 
