@@ -50,27 +50,12 @@ static unsigned long idleTimeoutMs(ConnState s) {
   return (s == ConnState::Connected) ? IDLE_SLEEP_CONNECTED_MS
                                      : IDLE_SLEEP_DISCONNECTED_MS;
 }
-constexpr unsigned long PAIRING_BLINK_MS = 150;
 constexpr unsigned long DISCONNECT_TIMEOUT_MS = 1000;
 constexpr unsigned long DEEP_SLEEP_HOLD_MS = 2000;
 constexpr unsigned long SCROLL_PAUSE_MS = 50;
 
-// LED brightness presets (0-255 PWM duty)
-constexpr uint8_t LED_OFF = 0;
-constexpr uint8_t LED_CONNECTED = 55;
-constexpr uint8_t LED_PAIRING_BLINK = 80;
-constexpr uint8_t LED_WAIT_R = 40;
-constexpr uint8_t LED_WAIT_G = 30;
-constexpr uint8_t LED_WAIT_B = 20;
-
 int mouseSensitivity = 300;
 int mouseMoveDelay = 5;
-
-void setLed(uint8_t r, uint8_t g, uint8_t b) {
-  analogWrite(R_PIN, r);
-  analogWrite(G_PIN, g);
-  analogWrite(B_PIN, b);
-}
 
 struct LedPulse {
   unsigned long onMs;
@@ -185,14 +170,11 @@ void updateConnState() {
   }
 }
 
-bool pairingMode = false;
-
 // Drop the active connection (if any) and re-advertise so a new host can pair.
 // Existing bonds stay intact — wiping them here is what was forcing macOS into
 // the "Forget Device + re-pair every time" loop, because the host kept its
 // bond while the ESP32 lost its half. Use forgetAllBonds() for a true reset.
 void enterPairingMode() {
-  pairingMode = true;
   Serial.println("[INFO]: Entering BLE pairing mode");
 
   auto *server = NimBLEDevice::getServer();
@@ -204,7 +186,7 @@ void enterPairingMode() {
       delay(20);
     }
   }
-  NimBLEDevice::startAdvertising();
+  transitionTo(ConnState::Discoverable);
 }
 
 // Wipe all stored bonds — destructive, every previously-paired host has to
@@ -221,8 +203,7 @@ void forgetAllBonds() {
     }
   }
   NimBLEDevice::deleteAllBonds();
-  NimBLEDevice::startAdvertising();
-  pairingMode = true;
+  transitionTo(ConnState::Discoverable);
 }
 
 void setup(void) {
@@ -384,11 +365,6 @@ void loop(void) {
     pressedButton = -1;
   }
   if (bleCombo.isConnected()) {
-    if (pairingMode) {
-      pairingMode = false;
-      Serial.println("[INFO]: Paired, exiting pairing mode");
-    }
-
     if (mouseEnabled) {
       while (i2cRead(0x3B, i2cData, 14))
         ;
