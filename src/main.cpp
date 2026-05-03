@@ -18,8 +18,8 @@ BLECombo bleCombo("MomoCoderGGKP");
 #include <esp_bt_main.h>   // Additional BLE functionaity
 #include <esp_sleep.h>     // Additional BLE functionaity
 
-#define I2C_GYRO_SCL 1
-#define I2C_GYRO_SDA 2
+#define I2C_SCL 1
+#define I2C_SDA 2
 
 #include "Display.h"
 #include "Keypad.h"
@@ -93,7 +93,7 @@ void setup(void) {
 
   bleCombo.begin();
   Serial.println("[INFO]: Starting BLE");
-  Wire.begin(I2C_GYRO_SDA, I2C_GYRO_SCL);
+  Wire.begin(I2C_SDA, I2C_SCL);
 
 #ifdef USE_AIR_MOUSE
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_6, LOW);
@@ -102,7 +102,7 @@ void setup(void) {
   i2cWrite2(0x6B, 0x00, true);
 #endif
 
-  displaySetup(I2C_GYRO_SDA, I2C_GYRO_SCL);
+  displaySetup(I2C_SDA, I2C_SCL);
 }
 
 bool mouseEnabled = false;
