@@ -66,6 +66,42 @@ void setLed(uint8_t r, uint8_t g, uint8_t b) {
   analogWrite(B_PIN, b);
 }
 
+struct LedPulse {
+  unsigned long onMs;
+  unsigned long offMs;
+  uint8_t brightness;
+};
+
+LedPulse ledPulseFor(ConnState s) {
+  switch (s) {
+  case ConnState::Connecting:   return {100, 1900, 30};   // dim heartbeat
+  case ConnState::Discoverable: return {150,  150, 80};   // bright fast blink
+  default:                      return {0,    0,   0};    // off
+  }
+}
+
+void updateLed(ConnState s) {
+  static unsigned long lastChange = 0;
+  static bool isOn = false;
+  LedPulse p = ledPulseFor(s);
+
+  if (p.onMs == 0 && p.offMs == 0) {
+    if (isOn) {
+      analogWrite(R_PIN, 0);
+      isOn = false;
+    }
+    return;
+  }
+
+  unsigned long now = millis();
+  unsigned long target = isOn ? p.onMs : p.offMs;
+  if (now - lastChange >= target) {
+    isOn = !isOn;
+    lastChange = now;
+    analogWrite(R_PIN, isOn ? p.brightness : 0);
+  }
+}
+
 // 3x3 icon layout per page. Glyphs are from u8g2_font_open_iconic_all_2x_t;
 // see Icons.h for the full name table.
 //
@@ -315,7 +351,6 @@ void loop(void) {
       pairingMode = false;
       Serial.println("[INFO]: Paired, exiting pairing mode");
     }
-    setLed(LED_OFF, LED_CONNECTED, LED_OFF);
 
     if (mouseEnabled) {
       while (i2cRead(0x3B, i2cData, 14))
@@ -340,33 +375,10 @@ void loop(void) {
       delay(DEEP_SLEEP_HOLD_MS);
       esp_deep_sleep_start();
     }
-  } else {
-    // BLECombo's onDisconnect callback doesn't re-arm advertising, so once the
-    // host drops the link (sleep, BT toggle, range) the device goes silent.
-    // Watchdog it from here.
-    auto *adv = NimBLEDevice::getAdvertising();
-    if (adv && !adv->isAdvertising()) {
-      adv->start();
-    }
-
-    if (pairingMode) {
-      static unsigned long lastBlink = 0;
-      static bool ledOn = false;
-      if (millis() - lastBlink >= PAIRING_BLINK_MS) {
-        ledOn = !ledOn;
-        setLed(LED_OFF, LED_OFF, ledOn ? LED_PAIRING_BLINK : LED_OFF);
-        lastBlink = millis();
-      }
-    } else {
-      Serial.println("Waiting for Bluetooth connection...");
-      setLed(LED_WAIT_R, LED_OFF, LED_OFF);
-      delay(1000);
-      setLed(LED_OFF, LED_WAIT_G, LED_OFF);
-      delay(1000);
-      setLed(LED_OFF, LED_OFF, LED_WAIT_B);
-      delay(1000);
-    }
   }
+  // LED is fully driven by connState now; advertising restart is handled
+  // by transitionTo()'s entry actions.
+  updateLed(connState);
 
   printPage();
 }
