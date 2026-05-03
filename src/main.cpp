@@ -264,19 +264,41 @@ bool dragEnabled = false;
 // Encodes everything that affects what's drawn on screen so the display only
 // repaints on a real change (full-buffer streaming over I²C is ~10 ms).
 struct DisplayState {
+  ConnState conn;
   Page page;
   bool scroll;
   bool drag;
-  bool pairing;
   int sensitivity;
   int moveDelay;
 
   bool operator!=(const DisplayState &o) const {
-    return page != o.page || scroll != o.scroll || drag != o.drag ||
-           pairing != o.pairing || sensitivity != o.sensitivity ||
+    return conn != o.conn || page != o.page || scroll != o.scroll ||
+           drag != o.drag || sensitivity != o.sensitivity ||
            moveDelay != o.moveDelay;
   }
 };
+
+void renderStatusScreen(ConnState s) {
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_5x7_tr);
+
+  if (s == ConnState::Connecting) {
+    u8g2.drawStr(0, 7, "Connecting...");
+    u8g2.setFont(u8g2_font_open_iconic_all_2x_t);
+    u8g2.drawGlyph(24, 28, ICON_BLUETOOTH);
+    u8g2.setFont(u8g2_font_5x7_tr);
+    u8g2.drawStr(0, 40, "OK = pair new");
+    u8g2.drawStr(0, 47, "A  = forget");
+  } else { // Discoverable
+    u8g2.drawStr(14, 7, "Pair me");
+    u8g2.setFont(u8g2_font_open_iconic_all_2x_t);
+    u8g2.drawGlyph(24, 30, ICON_BLUETOOTH);
+    u8g2.setFont(u8g2_font_4x6_tr);
+    u8g2.drawStr(0, 41, "MomoCoderGGKP");
+  }
+
+  u8g2.sendBuffer();
+}
 
 void renderPage(const DisplayState &s) {
   const int p = static_cast<int>(s.page);
@@ -307,21 +329,26 @@ void renderPage(const DisplayState &s) {
     u8g2.setFont(u8g2_font_5x7_tr);
     if (s.scroll) u8g2.drawStr(0, 6, "S");
     if (s.drag) u8g2.drawStr(8, 6, "D");
-  } else if (s.page == Page::Pairing && s.pairing) {
-    u8g2.setFont(u8g2_font_5x7_tr);
-    u8g2.drawStr(20, 46, "PAIR");
   }
 
   u8g2.sendBuffer();
 }
 
 void printPage() {
-  static DisplayState last = {Page::Mouse, false, false, false, -1, -1};
-  DisplayState now = {currentPage,      scrollEnabled,    dragEnabled,
-                      pairingMode,      mouseSensitivity, mouseMoveDelay};
+  static DisplayState last = {ConnState::Booting, Page::Mouse,
+                              false, false, -1, -1};
+  DisplayState now = {connState,       currentPage,
+                      scrollEnabled,   dragEnabled,
+                      mouseSensitivity, mouseMoveDelay};
   if (now != last) {
     last = now;
-    renderPage(now);
+    if (connState == ConnState::Connected) {
+      renderPage(now);
+    } else if (connState == ConnState::Connecting ||
+               connState == ConnState::Discoverable) {
+      renderStatusScreen(connState);
+    }
+    // ConnState::Booting: leave the splash from displaySetup() in place.
   }
 }
 
