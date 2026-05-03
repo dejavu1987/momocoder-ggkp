@@ -155,25 +155,14 @@ void printPage(int page) {
 
 void loop(void) {
 
-  if (KEYPAD_PAGE == 0 || KEYPAD_PAGE == 2) {
-    mouseEnabled = true;
-  } else {
-    mouseEnabled = false;
-  }
+  mouseEnabled = (currentPage == Page::Mouse || currentPage == Page::Settings);
 
   if (pressedButton != -1) {
-    handleButtonPress(KEYPAD_PAGE, pressedButton);
-
+    handleButtonPress(currentPage, pressedButton);
     delay(DEBOUNCE_MS);
 
-    // cycle pages
-    if (KEYPAD_PAGE < 0)
-      KEYPAD_PAGE = MAX_PAGE;
-    else if (KEYPAD_PAGE > MAX_PAGE)
-      KEYPAD_PAGE = 0;
-
     Serial.print("Page: ");
-    Serial.println(KEYPAD_PAGE);
+    Serial.println(static_cast<int>(currentPage));
     Serial.print("mouseEnabled: ");
     Serial.println(mouseEnabled);
     Serial.print("MRefreshDelay: ");
@@ -232,5 +221,5 @@ void loop(void) {
     delay(1000);
   }
 
-  printPage(KEYPAD_PAGE);
+  printPage(static_cast<int>(currentPage));
 }

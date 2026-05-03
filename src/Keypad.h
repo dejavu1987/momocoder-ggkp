@@ -36,12 +36,14 @@ Pin numbers
 #define BTN_D 16
 #define BTN_OK 15
 
+#include "globals.h"
+
 extern const int buttonNames[NUM_BUTTONS];
 extern volatile unsigned long lastButtonPressTime;
-extern int KEYPAD_PAGE;
+extern Page currentPage;
 extern volatile int pressedButton;
 
 void IRAM_ATTR buttonInterrupt();
-void handleButtonPress(int page, int pressedButton);
+void handleButtonPress(Page page, int pressedButton);
 
 #endif // KEYPAD_H

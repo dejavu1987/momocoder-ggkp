@@ -8,7 +8,7 @@ volatile unsigned long lastButtonPressTime = 0;
 const int buttonNames[NUM_BUTTONS] = {BTN_LT, BTN_RT, BTN_UP, BTN_DN, BTN_A,
                                       BTN_B,  BTN_C,  BTN_D,  BTN_OK};
 
-int KEYPAD_PAGE = 0;
+Page currentPage = Page::Mouse;
 
 volatile int pressedButton = -1;
 
@@ -31,10 +31,10 @@ static void handleButtonPressPage0(int pressedButton) {
     bleCombo.mouseClick(MOUSE_BACK);
     break;
   case BTN_UP:
-    KEYPAD_PAGE--;
+    --currentPage;
     break;
   case BTN_DN:
-    KEYPAD_PAGE++;
+    ++currentPage;
     break;
   case BTN_A:
     bleCombo.write(KEY_ESC);
@@ -68,10 +68,10 @@ static void handleButtonPressPage1(int pressedButton) {
     bleCombo.write(KEY_RIGHT_ARROW);
     break;
   case BTN_UP:
-    KEYPAD_PAGE--;
+    --currentPage;
     break;
   case BTN_DN:
-    KEYPAD_PAGE++;
+    ++currentPage;
     break;
   case BTN_A:
     bleCombo.write(KEY_ESC);
@@ -101,10 +101,10 @@ static void handleButtonPressPage2(int pressedButton) {
     mouseSensitivity += 10;
     break;
   case BTN_UP:
-    KEYPAD_PAGE--;
+    --currentPage;
     break;
   case BTN_DN:
-    KEYPAD_PAGE++;
+    ++currentPage;
     break;
   case BTN_A:
     bleCombo.write(KEY_ESC);
@@ -131,27 +131,27 @@ static void handleButtonPressPage3(int pressedButton) {
     enterPairingMode();
     break;
   case BTN_UP:
-    KEYPAD_PAGE--;
+    --currentPage;
     break;
   case BTN_DN:
-    KEYPAD_PAGE++;
+    ++currentPage;
     break;
   }
 }
 
-void handleButtonPress(int page, int pressedButton) {
+void handleButtonPress(Page page, int pressedButton) {
   if (pressedButton == -1) return;
   switch (page) {
-  case 0:
+  case Page::Mouse:
     handleButtonPressPage0(pressedButton);
     break;
-  case 1:
+  case Page::Media:
     handleButtonPressPage1(pressedButton);
     break;
-  case 2:
+  case Page::Settings:
     handleButtonPressPage2(pressedButton);
     break;
-  case 3:
+  case Page::Pairing:
     handleButtonPressPage3(pressedButton);
     break;
   }
