@@ -59,6 +59,12 @@ constexpr uint8_t LED_WAIT_B = 20;
 int mouseSensitivity = 300;
 int mouseMoveDelay = 5;
 
+void setLed(uint8_t r, uint8_t g, uint8_t b) {
+  analogWrite(R_PIN, r);
+  analogWrite(G_PIN, g);
+  analogWrite(B_PIN, b);
+}
+
 // Glyph IDs from u8g2_font_open_iconic_all_2x_t for each page's 3x3 grid.
 const uint16_t pages[NUM_PAGES][ICONS_PER_PAGE] = {
     {144, 119, 154, 117, 115, 118, 212, 116, 212},
@@ -183,9 +189,7 @@ void loop(void) {
       pairingMode = false;
       Serial.println("[INFO]: Paired, exiting pairing mode");
     }
-    analogWrite(B_PIN, LED_OFF);
-    analogWrite(R_PIN, LED_OFF);
-    analogWrite(G_PIN, LED_CONNECTED);
+    setLed(LED_OFF, LED_CONNECTED, LED_OFF);
 
     if (mouseEnabled) {
       while (i2cRead(0x3B, i2cData, 14))
@@ -215,26 +219,16 @@ void loop(void) {
     static bool ledOn = false;
     if (millis() - lastBlink >= PAIRING_BLINK_MS) {
       ledOn = !ledOn;
-      analogWrite(R_PIN, LED_OFF);
-      analogWrite(G_PIN, LED_OFF);
-      analogWrite(B_PIN, ledOn ? LED_PAIRING_BLINK : LED_OFF);
+      setLed(LED_OFF, LED_OFF, ledOn ? LED_PAIRING_BLINK : LED_OFF);
       lastBlink = millis();
     }
   } else {
     Serial.println("Waiting for Bluetooth connection...");
-    analogWrite(B_PIN, LED_OFF);
-    analogWrite(R_PIN, LED_WAIT_R);
-    analogWrite(G_PIN, LED_OFF);
+    setLed(LED_WAIT_R, LED_OFF, LED_OFF);
     delay(1000);
-
-    analogWrite(B_PIN, LED_OFF);
-    analogWrite(R_PIN, LED_OFF);
-    analogWrite(G_PIN, LED_WAIT_G);
+    setLed(LED_OFF, LED_WAIT_G, LED_OFF);
     delay(1000);
-
-    analogWrite(B_PIN, LED_WAIT_B);
-    analogWrite(R_PIN, LED_OFF);
-    analogWrite(G_PIN, LED_OFF);
+    setLed(LED_OFF, LED_OFF, LED_WAIT_B);
     delay(1000);
   }
 
