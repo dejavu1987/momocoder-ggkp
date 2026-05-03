@@ -114,6 +114,33 @@ void transitionTo(ConnState newState) {
   Serial.print(" -> ");
   Serial.println(static_cast<int>(newState));
   connState = newState;
+
+  if (newState == ConnState::Connecting || newState == ConnState::Discoverable) {
+    auto *adv = NimBLEDevice::getAdvertising();
+    if (adv && !adv->isAdvertising()) {
+      adv->start();
+    }
+  }
+}
+
+void updateConnState() {
+  bool connected = bleCombo.isConnected();
+
+  switch (connState) {
+  case ConnState::Booting:
+    transitionTo(NimBLEDevice::getNumBonds() > 0 ? ConnState::Connecting
+                                                 : ConnState::Discoverable);
+    break;
+  case ConnState::Connecting:
+  case ConnState::Discoverable:
+    if (connected) transitionTo(ConnState::Connected);
+    break;
+  case ConnState::Connected:
+    if (!connected) transitionTo(ConnState::Connecting);
+    break;
+  default:
+    break;
+  }
 }
 
 bool pairingMode = false;
@@ -263,6 +290,7 @@ void printPage() {
 }
 
 void loop(void) {
+  updateConnState();
 
   mouseEnabled = (currentPage == Page::Mouse || currentPage == Page::Settings);
 
