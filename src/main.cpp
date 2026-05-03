@@ -43,7 +43,13 @@ BLECombo bleCombo("MomoCoderGGKP");
 
 // Loop timing
 constexpr unsigned long DEBOUNCE_MS = 200;
-constexpr unsigned long IDLE_SLEEP_MS = 60000UL;
+constexpr unsigned long IDLE_SLEEP_CONNECTED_MS    = 60000UL;
+constexpr unsigned long IDLE_SLEEP_DISCONNECTED_MS = 120000UL;
+
+static unsigned long idleTimeoutMs(ConnState s) {
+  return (s == ConnState::Connected) ? IDLE_SLEEP_CONNECTED_MS
+                                     : IDLE_SLEEP_DISCONNECTED_MS;
+}
 constexpr unsigned long PAIRING_BLINK_MS = 150;
 constexpr unsigned long DISCONNECT_TIMEOUT_MS = 1000;
 constexpr unsigned long DEEP_SLEEP_HOLD_MS = 2000;
@@ -401,15 +407,17 @@ void loop(void) {
       }
       delay(mouseMoveDelay);
     }
-    if (millis() - lastButtonPressTime >= IDLE_SLEEP_MS) {
-      Serial.println("Going to sleep...");
-      delay(DEEP_SLEEP_HOLD_MS);
-      esp_deep_sleep_start();
-    }
   }
   // LED is fully driven by connState now; advertising restart is handled
   // by transitionTo()'s entry actions.
   updateLed(connState);
+
+  if (connState != ConnState::Booting &&
+      millis() - lastButtonPressTime >= idleTimeoutMs(connState)) {
+    Serial.println("Going to sleep...");
+    delay(DEEP_SLEEP_HOLD_MS);
+    esp_deep_sleep_start();
+  }
 
   printPage();
 }
