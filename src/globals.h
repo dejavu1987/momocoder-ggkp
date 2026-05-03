@@ -32,5 +32,6 @@ extern int mouseSensitivity;
 extern int mouseMoveDelay;
 
 void enterPairingMode();
+void forgetAllBonds();
 
 #endif // GLOBALS_H

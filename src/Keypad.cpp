@@ -130,6 +130,9 @@ static void handleButtonPressPage3(int pressedButton) {
   case BTN_OK:
     enterPairingMode();
     break;
+  case BTN_A:
+    forgetAllBonds();
+    break;
   case BTN_UP:
     --currentPage;
     break;

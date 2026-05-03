@@ -99,14 +99,18 @@ const uint16_t pages[NUM_PAGES][ICONS_PER_PAGE] = {
      ICON_MINUS,     ICON_MEDIA_PLAY,     ICON_PLUS,
      ICON_BOLT,      ICON_CHEVRON_BOTTOM, ICON_TIMER},
 
-    // Page::Pairing — only OK/UP/DN do anything; ICON_BAN flags the
-    // inactive slots so the user knows nothing else fires.
-    {ICON_BAN,       ICON_CHEVRON_TOP,    ICON_BAN,
+    // Page::Pairing — A wipes all bonds (destructive), OK starts pairing,
+    // UP/DN navigate. Inactive slots show ICON_BAN.
+    {ICON_TRASH,     ICON_CHEVRON_TOP,    ICON_BAN,
      ICON_BAN,       ICON_BLUETOOTH,      ICON_BAN,
      ICON_BAN,       ICON_CHEVRON_BOTTOM, ICON_BAN}};
 
 bool pairingMode = false;
 
+// Drop the active connection (if any) and re-advertise so a new host can pair.
+// Existing bonds stay intact — wiping them here is what was forcing macOS into
+// the "Forget Device + re-pair every time" loop, because the host kept its
+// bond while the ESP32 lost its half. Use forgetAllBonds() for a true reset.
 void enterPairingMode() {
   pairingMode = true;
   Serial.println("[INFO]: Entering BLE pairing mode");
@@ -115,8 +119,22 @@ void enterPairingMode() {
   if (server && server->getConnectedCount() > 0) {
     auto info = server->getPeerInfo(0);
     server->disconnect(info.getConnHandle());
-    // disconnect is async — block briefly so the loop's isConnected check
-    // doesn't immediately clear pairingMode before the peer is actually gone.
+    unsigned long deadline = millis() + DISCONNECT_TIMEOUT_MS;
+    while (server->getConnectedCount() > 0 && millis() < deadline) {
+      delay(20);
+    }
+  }
+  NimBLEDevice::startAdvertising();
+}
+
+// Wipe all stored bonds — destructive, every previously-paired host has to
+// "Forget Device" and pair again. Wired to BTN_A on the Pairing page.
+void forgetAllBonds() {
+  Serial.println("[INFO]: Wiping all BLE bonds");
+  auto *server = NimBLEDevice::getServer();
+  if (server && server->getConnectedCount() > 0) {
+    auto info = server->getPeerInfo(0);
+    server->disconnect(info.getConnHandle());
     unsigned long deadline = millis() + DISCONNECT_TIMEOUT_MS;
     while (server->getConnectedCount() > 0 && millis() < deadline) {
       delay(20);
@@ -124,6 +142,7 @@ void enterPairingMode() {
   }
   NimBLEDevice::deleteAllBonds();
   NimBLEDevice::startAdvertising();
+  pairingMode = true;
 }
 
 void setup(void) {
