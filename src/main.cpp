@@ -49,9 +49,31 @@ int mouseMoveDelay = 5;
  * Pages of icons
  * This should be stored in flash memory
  */
-uint16_t pages[3][9] = {{144, 119, 154, 117, 115, 118, 212, 116, 212},
+uint16_t pages[4][9] = {{144, 119, 154, 117, 115, 118, 212, 116, 212},
                         {144, 215, 277, 213, 211, 214, 279, 216, 278},
-                        {144, 119, 154, 117, 96, 118, 212, 116, 212}};
+                        {144, 119, 154, 117, 96, 118, 212, 116, 212},
+                        {144, 119, 154, 117, 247, 118, 212, 116, 212}};
+
+bool pairingMode = false;
+
+void enterPairingMode() {
+  pairingMode = true;
+  Serial.println("[INFO]: Entering BLE pairing mode");
+
+  auto *server = NimBLEDevice::getServer();
+  if (server && server->getConnectedCount() > 0) {
+    auto info = server->getPeerInfo(0);
+    server->disconnect(info.getConnHandle());
+    // disconnect is async — block briefly so the loop's isConnected check
+    // doesn't immediately clear pairingMode before the peer is actually gone.
+    unsigned long deadline = millis() + 1000;
+    while (server->getConnectedCount() > 0 && millis() < deadline) {
+      delay(20);
+    }
+  }
+  NimBLEDevice::deleteAllBonds();
+  NimBLEDevice::startAdvertising();
+}
 
 void setup(void) {
   Serial.begin(115200);
@@ -133,8 +155,8 @@ void loop(void) {
 
     // cycle pages
     if (KEYPAD_PAGE < 0)
-      KEYPAD_PAGE = 2;
-    else if (KEYPAD_PAGE > 2)
+      KEYPAD_PAGE = 3;
+    else if (KEYPAD_PAGE > 3)
       KEYPAD_PAGE = 0;
 
     Serial.print("Page: ");
@@ -150,6 +172,10 @@ void loop(void) {
     pressedButton = -1;
   }
   if (bleCombo.isConnected()) {
+    if (pairingMode) {
+      pairingMode = false;
+      Serial.println("[INFO]: Paired, exiting pairing mode");
+    }
     analogWrite(B_PIN, 0);
     analogWrite(R_PIN, 0);
     analogWrite(G_PIN, 55);
@@ -186,6 +212,16 @@ void loop(void) {
     }
 
     printPage(KEYPAD_PAGE);
+  } else if (pairingMode) {
+    static unsigned long lastBlink = 0;
+    static bool ledOn = false;
+    if (millis() - lastBlink >= 150) {
+      ledOn = !ledOn;
+      analogWrite(R_PIN, 0);
+      analogWrite(G_PIN, 0);
+      analogWrite(B_PIN, ledOn ? 80 : 0);
+      lastBlink = millis();
+    }
   } else {
     Serial.println("Waiting 5s for Bluetooth connection...");
     // Set the LED to green with varying intensity

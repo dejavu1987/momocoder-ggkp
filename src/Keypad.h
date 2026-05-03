@@ -129,6 +129,20 @@ void handleButtonPressPage2(int pressedButton) {
   }
 }
 
+void handleButtonPressPage3(int pressedButton) {
+  switch (pressedButton) {
+  case BTN_OK:
+    enterPairingMode();
+    break;
+  case BTN_UP:
+    KEYPAD_PAGE--;
+    break;
+  case BTN_DN:
+    KEYPAD_PAGE++;
+    break;
+  }
+}
+
 void handleButtonPressDefault(int pressedButton) {
   switch (pressedButton) {
   case BTN_LT:
@@ -169,6 +183,9 @@ void handleButtonPress(int page, int pressedButton) {
       break;
     case 2:
       handleButtonPressPage2(pressedButton);
+      break;
+    case 3:
+      handleButtonPressPage3(pressedButton);
       break;
     default:
       handleButtonPressDefault(pressedButton);
