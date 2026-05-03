@@ -20,14 +20,15 @@ BLECombo bleCombo("MomoCoderGGKP");
 #include <esp_bt_main.h>   // Additional BLE functionaity
 #include <esp_sleep.h>     // Additional BLE functionaity
 
+#define I2C_GYRO_SCL 1
+#define I2C_GYRO_SDA 2
+
 #include "Display.h"
 #include "Keypad.h"
 
 #define USE_AIR_MOUSE
 
 #ifdef USE_AIR_MOUSE
-#define I2C_GYRO_SCL 1
-#define I2C_GYRO_SDA 2
 #include "AirMouse.h"
 #endif
 // #include <ArduinoJson.h> // Using ArduinoJson to read and write config files
@@ -85,7 +86,7 @@ void setup(void) {
   Wire.endTransmission(true);
 #endif
 
-  // displaySetup();
+  displaySetup(I2C_GYRO_SDA, I2C_GYRO_SCL);
 }
 
 bool mouseEnabled = false;
@@ -96,18 +97,24 @@ bool dragEnabled = false;
  * @brief Function for printing 3x3 icon menu
  */
 void printPage(int page) {
+  static int lastPage = -1;
+  if (page == lastPage) return;
+  lastPage = page;
+
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_open_iconic_all_2x_t);
+
   int x = 0;
   int y = 16;
-
   for (int row = 0; row < 3; row++) {
     for (int col = 0; col < 3; col++) {
-      // u8g2.drawGlyph(x, y, pages[page][row * 3 + col]);
-      // Implement some drawing functions
-      x += 21; // Increment the x-coordinate for the next column
+      u8g2.drawGlyph(x, y, pages[page][row * 3 + col]);
+      x += 21;
     }
-    x = 0;   // Reset x-coordinate for the next row
-    y += 16; // Increment the y-coordinate for the next row
+    x = 0;
+    y += 16;
   }
+  u8g2.sendBuffer();
 }
 
 void loop(void) {
