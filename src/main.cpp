@@ -129,28 +129,68 @@ bool mouseEnabled = false;
 bool scrollEnabled = false;
 bool dragEnabled = false;
 
-/**
- * @brief Function for printing 3x3 icon menu
- */
-void printPage(int page) {
-  static int lastPage = -1;
-  if (page == lastPage) return;
-  lastPage = page;
+// Encodes everything that affects what's drawn on screen so the display only
+// repaints on a real change (full-buffer streaming over I²C is ~10 ms).
+struct DisplayState {
+  Page page;
+  bool scroll;
+  bool drag;
+  bool pairing;
+  int sensitivity;
+  int moveDelay;
 
+  bool operator!=(const DisplayState &o) const {
+    return page != o.page || scroll != o.scroll || drag != o.drag ||
+           pairing != o.pairing || sensitivity != o.sensitivity ||
+           moveDelay != o.moveDelay;
+  }
+};
+
+void renderPage(const DisplayState &s) {
+  const int p = static_cast<int>(s.page);
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_open_iconic_all_2x_t);
 
-  int x = 0;
+  // Page 2 (Settings) replaces the bottom row with live values; the top two
+  // rows of icons stay as a button-mapping reminder.
+  const int rows = (s.page == Page::Settings) ? 2 : 3;
   int y = 16;
-  for (int row = 0; row < 3; row++) {
+  for (int row = 0; row < rows; row++) {
+    int x = 0;
     for (int col = 0; col < 3; col++) {
-      u8g2.drawGlyph(x, y, pages[page][row * 3 + col]);
+      u8g2.drawGlyph(x, y, pages[p][row * 3 + col]);
       x += 21;
     }
-    x = 0;
     y += 16;
   }
+
+  if (s.page == Page::Settings) {
+    u8g2.setFont(u8g2_font_5x7_tr);
+    char buf[16];
+    snprintf(buf, sizeof(buf), "S:%d D:%d", s.sensitivity, s.moveDelay);
+    u8g2.drawStr(0, 46, buf);
+  } else if (s.page == Page::Mouse && (s.scroll || s.drag)) {
+    // Tiny status letter in the corner to show toggle state without
+    // sacrificing an icon position.
+    u8g2.setFont(u8g2_font_5x7_tr);
+    if (s.scroll) u8g2.drawStr(0, 6, "S");
+    if (s.drag) u8g2.drawStr(8, 6, "D");
+  } else if (s.page == Page::Pairing && s.pairing) {
+    u8g2.setFont(u8g2_font_5x7_tr);
+    u8g2.drawStr(20, 46, "PAIR");
+  }
+
   u8g2.sendBuffer();
+}
+
+void printPage() {
+  static DisplayState last = {Page::Mouse, false, false, false, -1, -1};
+  DisplayState now = {currentPage,      scrollEnabled,    dragEnabled,
+                      pairingMode,      mouseSensitivity, mouseMoveDelay};
+  if (now != last) {
+    last = now;
+    renderPage(now);
+  }
 }
 
 void loop(void) {
@@ -221,5 +261,5 @@ void loop(void) {
     delay(1000);
   }
 
-  printPage(static_cast<int>(currentPage));
+  printPage();
 }
