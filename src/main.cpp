@@ -22,6 +22,7 @@ BLECombo bleCombo("MomoCoderGGKP");
 #define I2C_SDA 2
 
 #include "Display.h"
+#include "Icons.h"
 #include "Keypad.h"
 
 #define USE_AIR_MOUSE
@@ -65,12 +66,30 @@ void setLed(uint8_t r, uint8_t g, uint8_t b) {
   analogWrite(B_PIN, b);
 }
 
-// Glyph IDs from u8g2_font_open_iconic_all_2x_t for each page's 3x3 grid.
+// 3x3 icon layout per page. Glyphs are from u8g2_font_open_iconic_all_2x_t;
+// see Icons.h for the full name table.
+//
+// Position layout (matches the physical keypad):
+//   A  | UP | B
+//   LT | OK | RT
+//   C  | DN | D
 const uint16_t pages[NUM_PAGES][ICONS_PER_PAGE] = {
-    {144, 119, 154, 117, 115, 118, 212, 116, 212},
-    {144, 215, 277, 213, 211, 214, 279, 216, 278},
-    {144, 119, 154, 117, 96, 118, 212, 116, 212},
-    {144, 119, 154, 117, 247, 118, 212, 116, 212}};
+    // Page::Mouse — air-mouse with click bindings
+    {ICON_DELETE, ICON_CHEVRON_TOP,    ICON_ELEVATOR,
+     ICON_CHEVRON_LEFT, ICON_CHECK,    ICON_CHEVRON_RIGHT,
+     ICON_MEDIA_RECORD, ICON_CHEVRON_BOTTOM, ICON_MEDIA_RECORD},
+    // Page::Media — keyboard / media keys
+    {ICON_DELETE,             ICON_MEDIA_STEP_BACKWARD, ICON_VOLUME_HIGH,
+     ICON_MEDIA_SKIP_BACKWARD, ICON_MEDIA_PLAY,         ICON_MEDIA_SKIP_FORWARD,
+     ICON_VOLUME_OFF,         ICON_MEDIA_STEP_FORWARD,  ICON_VOLUME_LOW},
+    // Page::Settings — sensitivity / move-delay tuning
+    {ICON_DELETE, ICON_CHEVRON_TOP,    ICON_ELEVATOR,
+     ICON_CHEVRON_LEFT, ICON_BOLT,     ICON_CHEVRON_RIGHT,
+     ICON_MEDIA_RECORD, ICON_CHEVRON_BOTTOM, ICON_MEDIA_RECORD},
+    // Page::Pairing — BLE pairing trigger
+    {ICON_DELETE, ICON_CHEVRON_TOP,    ICON_ELEVATOR,
+     ICON_CHEVRON_LEFT, ICON_RSS_ALT,  ICON_CHEVRON_RIGHT,
+     ICON_MEDIA_RECORD, ICON_CHEVRON_BOTTOM, ICON_MEDIA_RECORD}};
 
 bool pairingMode = false;
 
