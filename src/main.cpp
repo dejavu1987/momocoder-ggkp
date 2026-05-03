@@ -282,22 +282,32 @@ void loop(void) {
       delay(DEEP_SLEEP_HOLD_MS);
       esp_deep_sleep_start();
     }
-  } else if (pairingMode) {
-    static unsigned long lastBlink = 0;
-    static bool ledOn = false;
-    if (millis() - lastBlink >= PAIRING_BLINK_MS) {
-      ledOn = !ledOn;
-      setLed(LED_OFF, LED_OFF, ledOn ? LED_PAIRING_BLINK : LED_OFF);
-      lastBlink = millis();
-    }
   } else {
-    Serial.println("Waiting for Bluetooth connection...");
-    setLed(LED_WAIT_R, LED_OFF, LED_OFF);
-    delay(1000);
-    setLed(LED_OFF, LED_WAIT_G, LED_OFF);
-    delay(1000);
-    setLed(LED_OFF, LED_OFF, LED_WAIT_B);
-    delay(1000);
+    // BLECombo's onDisconnect callback doesn't re-arm advertising, so once the
+    // host drops the link (sleep, BT toggle, range) the device goes silent.
+    // Watchdog it from here.
+    auto *adv = NimBLEDevice::getAdvertising();
+    if (adv && !adv->isAdvertising()) {
+      adv->start();
+    }
+
+    if (pairingMode) {
+      static unsigned long lastBlink = 0;
+      static bool ledOn = false;
+      if (millis() - lastBlink >= PAIRING_BLINK_MS) {
+        ledOn = !ledOn;
+        setLed(LED_OFF, LED_OFF, ledOn ? LED_PAIRING_BLINK : LED_OFF);
+        lastBlink = millis();
+      }
+    } else {
+      Serial.println("Waiting for Bluetooth connection...");
+      setLed(LED_WAIT_R, LED_OFF, LED_OFF);
+      delay(1000);
+      setLed(LED_OFF, LED_WAIT_G, LED_OFF);
+      delay(1000);
+      setLed(LED_OFF, LED_OFF, LED_WAIT_B);
+      delay(1000);
+    }
   }
 
   printPage();
