@@ -143,7 +143,7 @@ void handleButtonPressPage3(int pressedButton) {
   }
 }
 
-void handleButtonPressDefault(int pressedButton) {
+void handleButtonPressPage1(int pressedButton) {
   switch (pressedButton) {
   case BTN_LT:
     bleCombo.write(KEY_LEFT_ARROW);
@@ -181,14 +181,14 @@ void handleButtonPress(int page, int pressedButton) {
     case 0:
       handleButtonPressPage0(pressedButton);
       break;
+    case 1:
+      handleButtonPressPage1(pressedButton);
+      break;
     case 2:
       handleButtonPressPage2(pressedButton);
       break;
     case 3:
       handleButtonPressPage3(pressedButton);
-      break;
-    default:
-      handleButtonPressDefault(pressedButton);
       break;
     }
   }
