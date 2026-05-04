@@ -24,6 +24,7 @@ BLECombo bleCombo("MomoCoderGGKP");
 #include "Display.h"
 #include "Icons.h"
 #include "Keypad.h"
+#include "Pages.h"
 
 #define USE_AIR_MOUSE
 
@@ -92,45 +93,6 @@ void updateLed(ConnState s) {
     analogWrite(R_PIN, isOn ? p.brightness : 0);
   }
 }
-
-// 3x3 icon layout per page. Glyphs are from u8g2_font_open_iconic_all_2x_t;
-// see Icons.h for the full name table.
-//
-// Position layout (matches the physical keypad):
-//   A  | UP | B
-//   LT | OK | RT
-//   C  | DN | D
-const uint16_t pages[NUM_PAGES][ICONS_PER_PAGE] = {
-    // Page::Mouse — air mouse with click bindings.
-    //  ESC          UP→nav         scroll-toggle
-    //  L-click      R-click(menu)  browser-back
-    //  drag-toggle  DN→nav         browser-forward
-    {ICON_CIRCLE_X,  ICON_CHEVRON_TOP,    ICON_LOOP,
-     ICON_TARGET,    ICON_MENU,           ICON_ACTION_UNDO,
-     ICON_MOVE,      ICON_CHEVRON_BOTTOM, ICON_ACTION_REDO},
-
-    // Page::Media — keyboard / media keys.
-    //  ESC        UP→nav   fullscreen
-    //  prev       play     next
-    //  vol+       DN→nav   vol-
-    {ICON_CIRCLE_X,            ICON_CHEVRON_TOP,    ICON_FULLSCREEN_ENTER,
-     ICON_MEDIA_SKIP_BACKWARD, ICON_MEDIA_PLAY,     ICON_MEDIA_SKIP_FORWARD,
-     ICON_VOLUME_HIGH,         ICON_CHEVRON_BOTTOM, ICON_VOLUME_LOW},
-
-    // Page::Settings — air-mouse tuning. The bottom row is replaced by a
-    // live "S:NNN D:NN" overlay in renderPage(), so those glyphs aren't shown.
-    //  ESC        UP→nav    fullscreen
-    //  sens-      play      sens+
-    //  delay-     DN→nav    delay+
-    {ICON_CIRCLE_X,  ICON_CHEVRON_TOP,    ICON_FULLSCREEN_ENTER,
-     ICON_MINUS,     ICON_MEDIA_PLAY,     ICON_PLUS,
-     ICON_BOLT,      ICON_CHEVRON_BOTTOM, ICON_TIMER},
-
-    // Page::Pairing — A wipes all bonds (destructive), OK starts pairing,
-    // UP/DN navigate. Inactive slots show ICON_BAN.
-    {ICON_TRASH,     ICON_CHEVRON_TOP,    ICON_BAN,
-     ICON_BAN,       ICON_BLUETOOTH,      ICON_BAN,
-     ICON_BAN,       ICON_CHEVRON_BOTTOM, ICON_BAN}};
 
 ConnState connState = ConnState::Booting;
 
@@ -288,21 +250,22 @@ void renderStatusScreen(ConnState s) {
 }
 
 void renderPage(const DisplayState &s) {
-  const int p = static_cast<int>(s.page);
+  const PageDef &def = pageDefs[static_cast<int>(s.page)];
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_open_iconic_all_2x_t);
 
-  // Page 2 (Settings) replaces the bottom row with live values; the top two
-  // rows of icons stay as a button-mapping reminder.
-  const int rows = (s.page == Page::Settings) ? 2 : 3;
-  int y = 16;
-  for (int row = 0; row < rows; row++) {
-    int x = 0;
-    for (int col = 0; col < 3; col++) {
-      u8g2.drawGlyph(x, y, pages[p][row * 3 + col]);
-      x += 21;
-    }
-    y += 16;
+  // Page::Settings replaces the bottom row with a "S:NNN D:NN" overlay,
+  // so suppress glyphs in slots 6..8.
+  const int maxSlot = (s.page == Page::Settings) ? 5 : 8;
+
+  for (uint8_t i = 0; i < def.count; ++i) {
+    const Binding &b = def.bindings[i];
+    if (b.icon == 0) continue;
+    int slot = slotForButton(b.button);
+    if (slot < 0 || slot > maxSlot) continue;
+    int col = slot % 3;
+    int row = slot / 3;
+    u8g2.drawGlyph(col * 21, row * 16 + 16, b.icon);
   }
 
   if (s.page == Page::Settings) {
@@ -311,8 +274,6 @@ void renderPage(const DisplayState &s) {
     snprintf(buf, sizeof(buf), "S:%d D:%d", s.sensitivity, s.moveDelay);
     u8g2.drawStr(0, 46, buf);
   } else if (s.page == Page::Mouse && (s.scroll || s.drag)) {
-    // Tiny status letter in the corner to show toggle state without
-    // sacrificing an icon position.
     u8g2.setFont(u8g2_font_5x7_tr);
     if (s.scroll) u8g2.drawStr(0, 6, "S");
     if (s.drag) u8g2.drawStr(8, 6, "D");
