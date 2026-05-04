@@ -4,7 +4,6 @@
 #include <BLECombo.h>
 
 constexpr int NUM_PAGES = 4;
-constexpr int ICONS_PER_PAGE = 9; // 3x3 grid, also matches NUM_BUTTONS
 
 enum class Page : int {
   Mouse = 0,    // air mouse active
