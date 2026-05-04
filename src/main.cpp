@@ -199,8 +199,7 @@ void setup(void) {
 #ifdef USE_AIR_MOUSE
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_6, LOW);
   Serial.println("[INFO]: Starting AirMouse");
-  // Wake the MPU6050 by clearing the SLEEP bit in PWR_MGMT_1 (0x6B).
-  i2cWrite2(0x6B, 0x00, true);
+  mpuWake();
 #endif
 
   displaySetup(I2C_SDA, I2C_SCL);
@@ -304,6 +303,12 @@ void loop(void) {
   updateConnState();
 
   mouseEnabled = (currentPage == Page::Mouse || currentPage == Page::Settings);
+
+  static bool prevMouseEnabled = true;  // setup() already woke the MPU
+  if (mouseEnabled != prevMouseEnabled) {
+    if (mouseEnabled) mpuWake(); else mpuSleep();
+    prevMouseEnabled = mouseEnabled;
+  }
 
   if (pressedButton != -1) {
     if (connState == ConnState::Connected) {

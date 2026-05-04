@@ -14,4 +14,7 @@ uint8_t i2cWrite(uint8_t registerAddress, uint8_t *data, uint8_t length,
 uint8_t i2cWrite2(uint8_t registerAddress, uint8_t data, bool sendStop);
 uint8_t i2cRead(uint8_t registerAddress, uint8_t *data, uint8_t nbytes);
 
+void mpuWake();
+void mpuSleep();
+
 #endif // AIRMOUSE_H
