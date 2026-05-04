@@ -6,7 +6,8 @@
 
 enum class ActionKind : uint8_t {
   None,
-  Key,           // bleCombo.write(p.key)
+  Key,           // bleCombo.write(*p.keyPtr) — single-byte HID code
+  MediaKey,      // bleCombo.write(*p.mediaPtr) — multi-byte media report
   MouseClick,    // bleCombo.mouseClick(p.mouseBtn)
   ToggleScroll,  // scrollEnabled = !scrollEnabled
   ToggleDrag,    // dragEnabled = !dragEnabled; press/release MOUSE_LEFT
@@ -20,7 +21,12 @@ enum class ActionKind : uint8_t {
 
 struct Action {
   ActionKind kind;
-  union { uint16_t key; uint8_t mouseBtn; int8_t delta; } p;
+  union {
+    const uint8_t*        keyPtr;
+    const MediaKeyReport* mediaPtr;
+    uint8_t               mouseBtn;
+    int8_t                delta;
+  } p;
 };
 
 struct Binding {
