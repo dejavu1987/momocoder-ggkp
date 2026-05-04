@@ -3,13 +3,12 @@
 
 #include <BLECombo.h>
 
-constexpr int NUM_PAGES = 4;
+constexpr int NUM_PAGES = 3;
 
 enum class Page : int {
   Mouse = 0,    // air mouse active
   Media = 1,    // keyboard / media keys
-  Settings = 2, // air mouse active + sensitivity / delay tuning
-  Pairing = 3,  // BLE re-pairing
+  Settings = 2, // air mouse + sensitivity/delay tuning + BLE re-pairing
 };
 
 inline Page &operator++(Page &p) {
@@ -25,7 +24,7 @@ inline Page &operator--(Page &p) {
 enum class ConnState : int {
   Booting,      // first ~2 s of setup(), splash visible
   Connecting,   // has bonds, advertising, waiting for known host
-  Discoverable, // no bonds OR user pressed OK on Pairing page
+  Discoverable, // no bonds OR user pressed OK on Settings page
   Connected,    // bleCombo.isConnected() is true
 };
 

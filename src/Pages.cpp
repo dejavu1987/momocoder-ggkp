@@ -39,44 +39,28 @@ static const Binding mediaBindings[] = {
   {BTN_D,  ICON_VOLUME_LOW,          {ActionKind::MediaKey, {.mediaPtr = &KEY_MEDIA_VOLUME_DOWN}}},
 };
 
-// Page::Settings — air-mouse tuning. Bottom row icons exist but are not drawn:
-// renderPage() replaces the bottom row with a "S:NNN D:NN" overlay. Bindings
-// still execute when those buttons are pressed.
-//   A : ESC               UP: nav-prev          B : 'f' (fullscreen)
-//   LT: sens -10          OK: play/pause        RT: sens +10
+// Page::Settings — air-mouse tuning + BLE re-pairing. Bottom row icons exist
+// but are not drawn: renderPage() replaces the bottom row with a "S:NNN D:NN"
+// overlay. Bindings still execute when those buttons are pressed.
+//   A : forget bonds      UP: nav-prev          B : (none)
+//   LT: sens -10          OK: enter pairing     RT: sens +10
 //   C : delay -5          DN: nav-next          D : delay +5
 static const Binding settingsBindings[] = {
-  {BTN_A,  ICON_CIRCLE_X,         {ActionKind::Key,         {.keyPtr   = &KEY_ESC}}},
-  {BTN_UP, ICON_CHEVRON_TOP,      {ActionKind::NavPrev,     {}}},
-  {BTN_B,  ICON_FULLSCREEN_ENTER, {ActionKind::Key,         {.keyPtr   = &KEY_F_LOWER}}},
-  {BTN_LT, ICON_MINUS,            {ActionKind::AdjustSens,  {.delta    = -10}}},
-  {BTN_OK, ICON_MEDIA_PLAY,       {ActionKind::MediaKey,    {.mediaPtr = &KEY_MEDIA_PLAY_PAUSE}}},
-  {BTN_RT, ICON_PLUS,             {ActionKind::AdjustSens,  {.delta    = +10}}},
-  {BTN_C,  ICON_BOLT,             {ActionKind::AdjustDelay, {.delta    = -5}}},
-  {BTN_DN, ICON_CHEVRON_BOTTOM,   {ActionKind::NavNext,     {}}},
-  {BTN_D,  ICON_TIMER,            {ActionKind::AdjustDelay, {.delta    = +5}}},
-};
-
-// Page::Pairing — A wipes all bonds (destructive), OK starts pairing,
-// UP/DN navigate. Inactive slots show ICON_BAN with no action (preserves the
-// current visual exactly).
-static const Binding pairingBindings[] = {
-  {BTN_A,  ICON_TRASH,           {ActionKind::ForgetBonds,  {}}},
-  {BTN_UP, ICON_CHEVRON_TOP,     {ActionKind::NavPrev,      {}}},
-  {BTN_B,  ICON_BAN,             {ActionKind::None,         {}}},
-  {BTN_LT, ICON_BAN,             {ActionKind::None,         {}}},
-  {BTN_OK, ICON_BLUETOOTH,       {ActionKind::EnterPairing, {}}},
-  {BTN_RT, ICON_BAN,             {ActionKind::None,         {}}},
-  {BTN_C,  ICON_BAN,             {ActionKind::None,         {}}},
-  {BTN_DN, ICON_CHEVRON_BOTTOM,  {ActionKind::NavNext,      {}}},
-  {BTN_D,  ICON_BAN,             {ActionKind::None,         {}}},
+  {BTN_A,  ICON_TRASH,            {ActionKind::ForgetBonds,  {}}},
+  {BTN_UP, ICON_CHEVRON_TOP,      {ActionKind::NavPrev,      {}}},
+  {BTN_B,  ICON_BAN,              {ActionKind::None,         {}}},
+  {BTN_LT, ICON_MINUS,            {ActionKind::AdjustSens,   {.delta = -10}}},
+  {BTN_OK, ICON_BLUETOOTH,        {ActionKind::EnterPairing, {}}},
+  {BTN_RT, ICON_PLUS,             {ActionKind::AdjustSens,   {.delta = +10}}},
+  {BTN_C,  ICON_BOLT,             {ActionKind::AdjustDelay,  {.delta = -5}}},
+  {BTN_DN, ICON_CHEVRON_BOTTOM,   {ActionKind::NavNext,      {}}},
+  {BTN_D,  ICON_TIMER,            {ActionKind::AdjustDelay,  {.delta = +5}}},
 };
 
 const PageDef pageDefs[NUM_PAGES] = {
   {Page::Mouse,    mouseBindings,    9},
   {Page::Media,    mediaBindings,    9},
   {Page::Settings, settingsBindings, 9},
-  {Page::Pairing,  pairingBindings,  9},
 };
 
 int slotForButton(int button) {

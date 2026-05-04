@@ -154,7 +154,7 @@ void enterPairingMode() {
 }
 
 // Wipe all stored bonds — destructive, every previously-paired host has to
-// "Forget Device" and pair again. Wired to BTN_A on the Pairing page.
+// "Forget Device" and pair again. Wired to BTN_A on the Settings page.
 void forgetAllBonds() {
   Serial.println("[INFO]: Wiping all BLE bonds");
   auto *server = NimBLEDevice::getServer();
