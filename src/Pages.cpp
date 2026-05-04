@@ -103,6 +103,54 @@ const Binding* findBinding(Page page, int button) {
 }
 
 void executeAction(const Action& a) {
-  // Implemented in Task 3.
-  (void)a;
+  switch (a.kind) {
+  case ActionKind::None:
+    break;
+  case ActionKind::Key:
+    bleCombo.write(*a.p.keyPtr);
+    break;
+  case ActionKind::MediaKey:
+    bleCombo.write(*a.p.mediaPtr);
+    break;
+  case ActionKind::MouseClick:
+    bleCombo.mouseClick(a.p.mouseBtn);
+    break;
+  case ActionKind::ToggleScroll:
+    scrollEnabled = !scrollEnabled;
+    break;
+  case ActionKind::ToggleDrag:
+    dragEnabled = !dragEnabled;
+    if (dragEnabled) {
+      bleCombo.mousePress(MOUSE_LEFT);
+    } else {
+      bleCombo.mouseRelease(MOUSE_LEFT);
+    }
+    break;
+  case ActionKind::NavPrev:
+    --currentPage;
+    break;
+  case ActionKind::NavNext:
+    ++currentPage;
+    break;
+  case ActionKind::AdjustSens:
+    if (a.p.delta < 0) {
+      if (mouseSensitivity > 10) mouseSensitivity += a.p.delta;
+    } else {
+      mouseSensitivity += a.p.delta;
+    }
+    break;
+  case ActionKind::AdjustDelay:
+    if (a.p.delta < 0) {
+      if (mouseMoveDelay > 5) mouseMoveDelay += a.p.delta;
+    } else {
+      mouseMoveDelay += a.p.delta;
+    }
+    break;
+  case ActionKind::EnterPairing:
+    enterPairingMode();
+    break;
+  case ActionKind::ForgetBonds:
+    forgetAllBonds();
+    break;
+  }
 }
