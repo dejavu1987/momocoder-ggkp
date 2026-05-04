@@ -14,3 +14,7 @@ void displaySetup(int sda, int scl) {
   u8g2.drawStr(0, 22, "GGKP");
   u8g2.sendBuffer();
 }
+
+void displaySetPowerSave(bool save) {
+  u8g2.setPowerSave(save ? 1 : 0);
+}

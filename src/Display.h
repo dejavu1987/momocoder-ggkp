@@ -17,4 +17,8 @@ extern U8G2_SSD1306_64X48_ER_F_HW_I2C u8g2;
 // the configured pins right after.
 void displaySetup(int sda, int scl);
 
+// Toggle SSD1306 display-off (power save) mode. RAM is preserved, so the
+// previous frame is shown again when waking — no repaint required.
+void displaySetPowerSave(bool save);
+
 #endif // DISPLAY_H

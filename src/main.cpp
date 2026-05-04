@@ -44,6 +44,7 @@ BLECombo bleCombo("MomoCoderGGKP");
 
 // Loop timing
 constexpr unsigned long DEBOUNCE_MS = 200;
+constexpr unsigned long OLED_IDLE_MS                = 30000UL;
 constexpr unsigned long IDLE_SLEEP_CONNECTED_MS    = 60000UL;
 constexpr unsigned long IDLE_SLEEP_DISCONNECTED_MS = 120000UL;
 
@@ -107,6 +108,7 @@ void transitionTo(ConnState newState) {
   if (newState == ConnState::Connecting || newState == ConnState::Discoverable) {
     auto *adv = NimBLEDevice::getAdvertising();
     if (adv && !adv->isAdvertising()) {
+      Serial.println("[AUTO] BLE advertising start");
       adv->start();
     }
   }
@@ -208,6 +210,7 @@ void setup(void) {
 bool mouseEnabled = false;
 bool scrollEnabled = false;
 bool dragEnabled = false;
+bool oledAsleep = false;
 
 // Encodes everything that affects what's drawn on screen so the display only
 // repaints on a real change (full-buffer streaming over I²C is ~10 ms).
@@ -282,6 +285,7 @@ void renderPage(const DisplayState &s) {
 }
 
 void printPage() {
+  if (oledAsleep) return;
   static DisplayState last = {ConnState::Booting, Page::Mouse,
                               false, false, -1, -1};
   DisplayState now = {connState,       currentPage,
@@ -306,11 +310,27 @@ void loop(void) {
 
   static bool prevMouseEnabled = true;  // setup() already woke the MPU
   if (mouseEnabled != prevMouseEnabled) {
-    if (mouseEnabled) mpuWake(); else mpuSleep();
+    if (mouseEnabled) {
+      Serial.println("[AUTO] MPU6050 wake (mouse-enabled page)");
+      mpuWake();
+    } else {
+      Serial.println("[AUTO] MPU6050 sleep (non-mouse page)");
+      mpuSleep();
+    }
     prevMouseEnabled = mouseEnabled;
   }
 
-  if (pressedButton != -1) {
+  if (pressedButton != -1 && oledAsleep) {
+    // First press after OLED sleep just wakes the screen — swallow it so the
+    // user doesn't accidentally trigger an action they couldn't see.
+    Serial.print("[AUTO] OLED wake (button GPIO ");
+    Serial.print(pressedButton);
+    Serial.println(")");
+    displaySetPowerSave(false);
+    oledAsleep = false;
+    delay(DEBOUNCE_MS);
+    pressedButton = -1;
+  } else if (pressedButton != -1) {
     if (connState == ConnState::Connected) {
       handleButtonPress(currentPage, pressedButton);
     } else {
@@ -354,9 +374,20 @@ void loop(void) {
   // by transitionTo()'s entry actions.
   updateLed(connState);
 
+  if (!oledAsleep && connState != ConnState::Booting &&
+      millis() - lastButtonPressTime >= OLED_IDLE_MS) {
+    Serial.print("[AUTO] OLED power save (idle ");
+    Serial.print(OLED_IDLE_MS);
+    Serial.println(" ms)");
+    displaySetPowerSave(true);
+    oledAsleep = true;
+  }
+
   if (connState != ConnState::Booting &&
       millis() - lastButtonPressTime >= idleTimeoutMs(connState)) {
-    Serial.println("Going to sleep...");
+    Serial.print("[AUTO] Deep sleep (idle ");
+    Serial.print(idleTimeoutMs(connState));
+    Serial.println(" ms), waiting for ext0 wake on GPIO6");
     delay(DEEP_SLEEP_HOLD_MS);
     esp_deep_sleep_start();
   }
