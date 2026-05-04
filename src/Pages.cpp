@@ -1,11 +1,82 @@
 #include "Pages.h"
 #include "Keypad.h"
+#include <BLECombo.h>
+#include "Icons.h"
+
+// Page::Mouse — air mouse with click bindings.
+//   A : ESC                UP: nav-prev          B : scroll toggle
+//   LT: left click         OK: right click       RT: browser back
+//   C : drag toggle        DN: nav-next          D : browser forward
+static const Binding mouseBindings[] = {
+  {BTN_A,  ICON_CIRCLE_X,        {ActionKind::Key,          {.keyPtr = &KEY_ESC}}},
+  {BTN_UP, ICON_CHEVRON_TOP,     {ActionKind::NavPrev,      {}}},
+  {BTN_B,  ICON_LOOP,            {ActionKind::ToggleScroll, {}}},
+  {BTN_LT, ICON_TARGET,          {ActionKind::MouseClick,   {.mouseBtn = MOUSE_LEFT}}},
+  {BTN_OK, ICON_MENU,            {ActionKind::MouseClick,   {.mouseBtn = MOUSE_RIGHT}}},
+  {BTN_RT, ICON_ACTION_UNDO,     {ActionKind::MouseClick,   {.mouseBtn = MOUSE_BACK}}},
+  {BTN_C,  ICON_MOVE,            {ActionKind::ToggleDrag,   {}}},
+  {BTN_DN, ICON_CHEVRON_BOTTOM,  {ActionKind::NavNext,      {}}},
+  {BTN_D,  ICON_ACTION_REDO,     {ActionKind::MouseClick,   {.mouseBtn = MOUSE_FORWARD}}},
+};
+
+// 'f' is a literal byte — wrap once at file scope so the table can take its
+// address. Same trick for any future char-literal bindings.
+static const uint8_t KEY_F_LOWER = 'f';
+
+// Page::Media — keyboard / media keys.
+//   A : ESC          UP: nav-prev    B : 'f' (fullscreen)
+//   LT: left arrow   OK: play/pause  RT: right arrow
+//   C : vol up       DN: nav-next    D : vol down
+static const Binding mediaBindings[] = {
+  {BTN_A,  ICON_CIRCLE_X,            {ActionKind::Key,      {.keyPtr   = &KEY_ESC}}},
+  {BTN_UP, ICON_CHEVRON_TOP,         {ActionKind::NavPrev,  {}}},
+  {BTN_B,  ICON_FULLSCREEN_ENTER,    {ActionKind::Key,      {.keyPtr   = &KEY_F_LOWER}}},
+  {BTN_LT, ICON_MEDIA_SKIP_BACKWARD, {ActionKind::Key,      {.keyPtr   = &KEY_LEFT_ARROW}}},
+  {BTN_OK, ICON_MEDIA_PLAY,          {ActionKind::MediaKey, {.mediaPtr = &KEY_MEDIA_PLAY_PAUSE}}},
+  {BTN_RT, ICON_MEDIA_SKIP_FORWARD,  {ActionKind::Key,      {.keyPtr   = &KEY_RIGHT_ARROW}}},
+  {BTN_C,  ICON_VOLUME_HIGH,         {ActionKind::MediaKey, {.mediaPtr = &KEY_MEDIA_VOLUME_UP}}},
+  {BTN_DN, ICON_CHEVRON_BOTTOM,      {ActionKind::NavNext,  {}}},
+  {BTN_D,  ICON_VOLUME_LOW,          {ActionKind::MediaKey, {.mediaPtr = &KEY_MEDIA_VOLUME_DOWN}}},
+};
+
+// Page::Settings — air-mouse tuning. Bottom row icons exist but are not drawn:
+// renderPage() replaces the bottom row with a "S:NNN D:NN" overlay. Bindings
+// still execute when those buttons are pressed.
+//   A : ESC               UP: nav-prev          B : 'f' (fullscreen)
+//   LT: sens -10          OK: play/pause        RT: sens +10
+//   C : delay -5          DN: nav-next          D : delay +5
+static const Binding settingsBindings[] = {
+  {BTN_A,  ICON_CIRCLE_X,         {ActionKind::Key,         {.keyPtr   = &KEY_ESC}}},
+  {BTN_UP, ICON_CHEVRON_TOP,      {ActionKind::NavPrev,     {}}},
+  {BTN_B,  ICON_FULLSCREEN_ENTER, {ActionKind::Key,         {.keyPtr   = &KEY_F_LOWER}}},
+  {BTN_LT, ICON_MINUS,            {ActionKind::AdjustSens,  {.delta    = -10}}},
+  {BTN_OK, ICON_MEDIA_PLAY,       {ActionKind::MediaKey,    {.mediaPtr = &KEY_MEDIA_PLAY_PAUSE}}},
+  {BTN_RT, ICON_PLUS,             {ActionKind::AdjustSens,  {.delta    = +10}}},
+  {BTN_C,  ICON_BOLT,             {ActionKind::AdjustDelay, {.delta    = -5}}},
+  {BTN_DN, ICON_CHEVRON_BOTTOM,   {ActionKind::NavNext,     {}}},
+  {BTN_D,  ICON_TIMER,            {ActionKind::AdjustDelay, {.delta    = +5}}},
+};
+
+// Page::Pairing — A wipes all bonds (destructive), OK starts pairing,
+// UP/DN navigate. Inactive slots show ICON_BAN with no action (preserves the
+// current visual exactly).
+static const Binding pairingBindings[] = {
+  {BTN_A,  ICON_TRASH,           {ActionKind::ForgetBonds,  {}}},
+  {BTN_UP, ICON_CHEVRON_TOP,     {ActionKind::NavPrev,      {}}},
+  {BTN_B,  ICON_BAN,             {ActionKind::None,         {}}},
+  {BTN_LT, ICON_BAN,             {ActionKind::None,         {}}},
+  {BTN_OK, ICON_BLUETOOTH,       {ActionKind::EnterPairing, {}}},
+  {BTN_RT, ICON_BAN,             {ActionKind::None,         {}}},
+  {BTN_C,  ICON_BAN,             {ActionKind::None,         {}}},
+  {BTN_DN, ICON_CHEVRON_BOTTOM,  {ActionKind::NavNext,      {}}},
+  {BTN_D,  ICON_BAN,             {ActionKind::None,         {}}},
+};
 
 const PageDef pageDefs[NUM_PAGES] = {
-  {Page::Mouse,    nullptr, 0},
-  {Page::Media,    nullptr, 0},
-  {Page::Settings, nullptr, 0},
-  {Page::Pairing,  nullptr, 0},
+  {Page::Mouse,    mouseBindings,    9},
+  {Page::Media,    mediaBindings,    9},
+  {Page::Settings, settingsBindings, 9},
+  {Page::Pairing,  pairingBindings,  9},
 };
 
 int slotForButton(int button) {
