@@ -2,6 +2,7 @@
 #include "Keypad.h"
 #include <BLECombo.h>
 #include "Icons.h"
+#include "WifiRemote.h"
 
 // Page::Mouse — air mouse with click bindings.
 //   A : ESC                UP: nav-prev          B : scroll toggle
@@ -39,6 +40,23 @@ static const Binding mediaBindings[] = {
   {BTN_D,  ICON_VOLUME_LOW,          {ActionKind::MediaKey, {.mediaPtr = &KEY_MEDIA_VOLUME_DOWN}}},
 };
 
+// Page::Remote — Wi-Fi HTTP remote (connect-on-press to momoggkp.vercel.app).
+// All non-nav buttons fire GET /buttonPress/<name>. UP/DN keep page nav.
+//   A : "A"          UP: nav-prev    B : "B"
+//   LT: "left"       OK: "ok"        RT: "right"
+//   C : "C"          DN: nav-next    D : "D"
+static const Binding remoteBindings[] = {
+  {BTN_A,  ICON_BOOKMARK,        {ActionKind::WifiRequest, {.urlPart = "A"}}},
+  {BTN_UP, ICON_CHEVRON_TOP,     {ActionKind::NavPrev,     {}}},
+  {BTN_B,  ICON_BADGE,           {ActionKind::WifiRequest, {.urlPart = "B"}}},
+  {BTN_LT, ICON_ARROW_LEFT,      {ActionKind::WifiRequest, {.urlPart = "left"}}},
+  {BTN_OK, ICON_CIRCLE_CHECK,    {ActionKind::WifiRequest, {.urlPart = "ok"}}},
+  {BTN_RT, ICON_ARROW_RIGHT,     {ActionKind::WifiRequest, {.urlPart = "right"}}},
+  {BTN_C,  ICON_FLAG,            {ActionKind::WifiRequest, {.urlPart = "C"}}},
+  {BTN_DN, ICON_CHEVRON_BOTTOM,  {ActionKind::NavNext,     {}}},
+  {BTN_D,  ICON_TAG,             {ActionKind::WifiRequest, {.urlPart = "D"}}},
+};
+
 // Page::Settings — air-mouse tuning + BLE re-pairing. Bottom row icons exist
 // but are not drawn: renderPage() replaces the bottom row with a "S:NNN D:NN"
 // overlay. Bindings still execute when those buttons are pressed.
@@ -60,6 +78,7 @@ static const Binding settingsBindings[] = {
 const PageDef pageDefs[NUM_PAGES] = {
   {Page::Mouse,    mouseBindings,    9},
   {Page::Media,    mediaBindings,    9},
+  {Page::Remote,   remoteBindings,   9},
   {Page::Settings, settingsBindings, 9},
 };
 
@@ -135,6 +154,9 @@ void executeAction(const Action& a) {
     break;
   case ActionKind::ForgetBonds:
     forgetAllBonds();
+    break;
+  case ActionKind::WifiRequest:
+    wifiRemoteFire(a.p.urlPart);
     break;
   }
 }

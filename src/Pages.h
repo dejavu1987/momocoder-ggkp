@@ -17,6 +17,7 @@ enum class ActionKind : uint8_t {
   AdjustDelay,   // mouseMoveDelay   += p.delta (clamped >= 5)
   EnterPairing,  // enterPairingMode()
   ForgetBonds,   // forgetAllBonds()
+  WifiRequest,   // wifiRemoteFire(p.urlPart) — connect-on-press HTTP GET
 };
 
 struct Action {
@@ -26,6 +27,7 @@ struct Action {
     const MediaKeyReport* mediaPtr;
     uint8_t               mouseBtn;
     int8_t                delta;
+    const char*           urlPart;
   } p;
 };
 
