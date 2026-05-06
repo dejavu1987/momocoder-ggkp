@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <esp_wifi.h>
 
 // SSID/password come from wifi_secrets.ini (gitignored) via build_flags
 // interpolation in platformio.ini. The placeholders here are only hit if
@@ -14,6 +15,9 @@
 #endif
 #ifndef WIFI_CHANNEL
 #define WIFI_CHANNEL  6
+#endif
+#ifndef DEVICE_TOKEN
+#define DEVICE_TOKEN  "YOUR_DEVICE_TOKEN"
 #endif
 
 // AP MAC. Skipping the scan needs both channel + BSSID; without these
@@ -83,6 +87,13 @@ static bool associate() {
 static void teardown() {
   unsigned long t0 = millis();
   Serial.println("[WIFI] teardown begin");
+  // Both arduino calls below end up in esp_wifi_deinit(), which races on
+  // back-to-back presses and logs "wifi:timeout when WiFi un-init, type=4"
+  // async — cosmetic, every request still completes. We tried bypassing
+  // via raw esp_wifi_disconnect()+stop() to silence it, but that wedged
+  // arduino's internal WiFi state machine and broke the next associate
+  // (NO_SHIELD). The arduino-managed path is the only one WiFi.begin()
+  // recovers from cleanly.
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);
   Serial.printf("[WIFI] teardown done in %lums\n", millis() - t0);
@@ -112,7 +123,9 @@ static int doGet(const char* buttonName) {
   client.print(buttonName);
   client.print(" HTTP/1.1\r\nHost: ");
   client.print(HOST);
-  client.print("\r\nUser-Agent: GGKP/1\r\nConnection: close\r\n\r\n");
+  client.print("\r\nUser-Agent: GGKP/1\r\nAuthorization: Bearer ");
+  client.print(DEVICE_TOKEN);
+  client.print("\r\nConnection: close\r\n\r\n");
   Serial.printf("[WIFI] request sent (%lums)\n", millis() - tWrite);
 
   unsigned long deadline = millis() + HTTP_READ_TIMEOUT_MS;
@@ -164,9 +177,21 @@ void wifiRemoteFire(const char* buttonName) {
                    "wifi_secrets.ini missing or build_flags not interpolated");
   }
 
+  // Bump CPU to 240 MHz for the duration of this request. The TLS handshake
+  // is mbedTLS-bound (ECDHE + ECDSA verify) and roughly scales inverse to
+  // clock; expect ~750ms vs ~2200ms at 80 MHz. Scoped here only so other
+  // pages keep their 80 MHz idle profile. Restored before returning.
+  uint32_t origMhz = getCpuFrequencyMhz();
+  if (origMhz < 240) {
+    setCpuFrequencyMhz(240);
+    Serial.printf("[WIFI] cpu %u -> 240 MHz for handshake\n",
+                  (unsigned)origMhz);
+  }
+
   if (!associate()) {
     Serial.println("[WIFI] aborting: associate failed");
     teardown();
+    if (origMhz < 240) setCpuFrequencyMhz(origMhz);
     Serial.printf("[WIFI] === fire end (%lums, no request) ===\n",
                   millis() - t0);
     return;
@@ -180,6 +205,10 @@ void wifiRemoteFire(const char* buttonName) {
   }
 
   teardown();
+  if (origMhz < 240) {
+    setCpuFrequencyMhz(origMhz);
+    Serial.printf("[WIFI] cpu restored to %u MHz\n", (unsigned)origMhz);
+  }
   Serial.printf("[WIFI] === fire end (%lums, final code=%d) ===\n",
                 millis() - t0, code);
 }
