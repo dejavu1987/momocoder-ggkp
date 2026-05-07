@@ -6,6 +6,8 @@
 #include "ListPicker.h"
 #include "Keypad.h"
 #include "Display.h"
+#include "WifiConfigs.h"
+#include "WifiPage.h"
 #include <WiFiClient.h>
 #include <WiFiServer.h>
 
@@ -416,6 +418,66 @@ void wifiSetupTick() {
       sendRedirect(cli);
       cli.flush();
       cli.stop();
+      break;
+    }
+    case WifiSetupState::Saving: {
+      // Single-shot: kick off association on first tick; poll thereafter.
+      static unsigned long savingStartedMs = 0;
+      if (savingStartedMs != stateEnteredMs) {
+        savingStartedMs = stateEnteredMs;
+        if (pickedScanIdx < 0) {
+          strncpy(statusMessage, "internal error",
+                  sizeof(statusMessage) - 1);
+          enterState(WifiSetupState::Failed);
+          break;
+        }
+        const ScanEntry& e = scanResults[pickedScanIdx];
+        bumpCpu();
+        WiFi.mode(WIFI_STA);
+        WiFi.begin(e.ssid, submittedPassword, (int32_t)e.channel,
+                   const_cast<uint8_t*>(e.bssid));
+        Serial.printf("[WIFISETUP] validating creds for \"%s\"\n", e.ssid);
+        break;
+      }
+      wl_status_t s = WiFi.status();
+      if (s == WL_CONNECTED) {
+        const ScanEntry& e = scanResults[pickedScanIdx];
+        WifiConfig cfg{};
+        strncpy(cfg.ssid, e.ssid, sizeof(cfg.ssid) - 1);
+        strncpy(cfg.password, submittedPassword, sizeof(cfg.password) - 1);
+        memcpy(cfg.bssid, e.bssid, 6);
+        cfg.channel = e.channel;
+        int8_t idx = wifiConfigsAddOrUpdate(cfg, /*setAsActive*/true);
+        WiFi.disconnect(true);
+        WiFi.mode(WIFI_OFF);
+        restoreCpu();
+        // Wipe submitted password from RAM after persist.
+        memset(submittedPassword, 0, sizeof(submittedPassword));
+        if (idx < 0) {
+          strncpy(statusMessage, "storage full",
+                  sizeof(statusMessage) - 1);
+          enterState(WifiSetupState::Failed);
+        } else {
+          wifiPageRefresh();
+          enterState(WifiSetupState::Done);
+        }
+        break;
+      }
+      if (millis() - stateEnteredMs > 8000) {
+        Serial.printf("[WIFISETUP] validation timeout (status=%d)\n", (int)s);
+        WiFi.disconnect(true);
+        WiFi.mode(WIFI_OFF);
+        restoreCpu();
+        memset(submittedPassword, 0, sizeof(submittedPassword));
+        strncpy(statusMessage, "wrong password", sizeof(statusMessage) - 1);
+        enterState(WifiSetupState::Failed);
+      }
+      break;
+    }
+    case WifiSetupState::Done: {
+      if (millis() - stateEnteredMs > 1500) {
+        enterState(WifiSetupState::Idle);
+      }
       break;
     }
     case WifiSetupState::Failed: {
