@@ -3,6 +3,7 @@
 #include <BLECombo.h>
 #include "Icons.h"
 #include "WifiRemote.h"
+#include "Display.h"
 
 // Page::Mouse — air mouse with click bindings.
 //   A : ESC                UP: nav-prev          B : scroll toggle
@@ -64,9 +65,9 @@ static const Binding remoteBindings[] = {
 //   LT: sens -10          OK: enter pairing     RT: sens +10
 //   C : delay -5          DN: nav-next          D : delay +5
 static const Binding settingsBindings[] = {
-  {BTN_A,  ICON_TRASH,            {ActionKind::ForgetBonds,  {}}},
-  {BTN_UP, ICON_CHEVRON_TOP,      {ActionKind::NavPrev,      {}}},
-  {BTN_B,  ICON_BAN,              {ActionKind::None,         {}}},
+  {BTN_A,  ICON_TRASH,            {ActionKind::ForgetBonds,      {}}},
+  {BTN_UP, ICON_CHEVRON_TOP,      {ActionKind::NavPrev,          {}}},
+  {BTN_B,  ICON_SUN,              {ActionKind::CycleBrightness,  {}}},
   {BTN_LT, ICON_MINUS,            {ActionKind::AdjustSens,   {.delta = -10}}},
   {BTN_OK, ICON_BLUETOOTH,        {ActionKind::EnterPairing, {}}},
   {BTN_RT, ICON_PLUS,             {ActionKind::AdjustSens,   {.delta = +10}}},
@@ -157,6 +158,9 @@ void executeAction(const Action& a) {
     break;
   case ActionKind::WifiRequest:
     wifiRemoteFire(a.p.urlPart);
+    break;
+  case ActionKind::CycleBrightness:
+    displayCycleBrightness();
     break;
   }
 }

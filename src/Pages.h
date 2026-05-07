@@ -18,6 +18,7 @@ enum class ActionKind : uint8_t {
   EnterPairing,  // enterPairingMode()
   ForgetBonds,   // forgetAllBonds()
   WifiRequest,   // wifiRemoteFire(p.urlPart) — connect-on-press HTTP GET
+  CycleBrightness, // displayCycleBrightness() — low→mid→high
 };
 
 struct Action {

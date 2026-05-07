@@ -21,4 +21,11 @@ void displaySetup(int sda, int scl);
 // previous frame is shown again when waking — no repaint required.
 void displaySetPowerSave(bool save);
 
+// Set SSD1306 contrast register (0x81), value 0-255. Lower = dimmer + less
+// active current. Default applied in displaySetup() is BRIGHTNESS_MID.
+void displaySetBrightness(uint8_t v);
+
+// Cycle through low → mid → high presets and apply.
+void displayCycleBrightness();
+
 #endif // DISPLAY_H
