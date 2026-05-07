@@ -4,27 +4,14 @@
 #include <WiFiClientSecure.h>
 #include <esp_wifi.h>
 
-// SSID/password come from wifi_secrets.ini (gitignored) via build_flags
-// interpolation in platformio.ini. The placeholders here are only hit if
-// that file is missing — Serial logs will show "YOUR_SSID" associate fail.
-#ifndef WIFI_SSID
-#define WIFI_SSID     "YOUR_SSID"
-#endif
-#ifndef WIFI_PASSWORD
-#define WIFI_PASSWORD "YOUR_PASSWORD"
-#endif
-#ifndef WIFI_CHANNEL
-#define WIFI_CHANNEL  6
-#endif
+#include "WifiConfigs.h"
+
+// SSID/password/BSSID/channel are read per-press from WifiConfigs (NVS).
+// DEVICE_TOKEN remains a build-time secret from wifi_secrets.ini — it's
+// the bearer auth for the vercel app, not per-network.
 #ifndef DEVICE_TOKEN
 #define DEVICE_TOKEN  "YOUR_DEVICE_TOKEN"
 #endif
-
-// AP MAC. Skipping the scan needs both channel + BSSID; without these
-// WiFi.begin() spends ~1.5-2 s scanning every channel before associating.
-// f8:d2:ac:6f:cc:18 = AbiJamun 2.4 GHz radio (the 5 GHz radio at ...:20 and
-// the LAN MAC at 02:10:18:... are different — must be the 2.4 GHz BSSID).
-static uint8_t WIFI_BSSID[6] = { 0xF8, 0xD2, 0xAC, 0x6F, 0xCC, 0x18 };
 
 static const char*    HOST    = "momoggkp.vercel.app";
 static const uint16_t PORT    = 443;
@@ -51,16 +38,19 @@ static const char *wifiStatusName(wl_status_t s) {
   }
 }
 
-static bool associate() {
+static bool associate(const WifiConfig& cfg) {
   unsigned long t0 = millis();
-  Serial.printf("[WIFI] associate begin ssid=\"%s\" ch=%d "
+  Serial.printf("[WIFI] associate begin ssid=\"%s\" ch=%u "
                 "bssid=%02X:%02X:%02X:%02X:%02X:%02X timeout=%lums\n",
-                WIFI_SSID, WIFI_CHANNEL,
-                WIFI_BSSID[0], WIFI_BSSID[1], WIFI_BSSID[2],
-                WIFI_BSSID[3], WIFI_BSSID[4], WIFI_BSSID[5],
+                cfg.ssid, (unsigned)cfg.channel,
+                cfg.bssid[0], cfg.bssid[1], cfg.bssid[2],
+                cfg.bssid[3], cfg.bssid[4], cfg.bssid[5],
                 ASSOCIATE_TIMEOUT_MS);
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD, WIFI_CHANNEL, WIFI_BSSID);
+  // WiFi.begin signature: ssid, pass, channel, bssid, connect=true.
+  // bssid is non-const uint8_t* in the API even though we don't mutate it.
+  WiFi.begin(cfg.ssid, cfg.password, (int32_t)cfg.channel,
+             const_cast<uint8_t*>(cfg.bssid));
   unsigned long deadline = millis() + ASSOCIATE_TIMEOUT_MS;
   wl_status_t lastStatus = (wl_status_t)-1;
   while (WiFi.status() != WL_CONNECTED && millis() < deadline) {
@@ -170,13 +160,6 @@ void wifiRemoteFire(const char* buttonName) {
   unsigned long t0 = millis();
   Serial.printf("[WIFI] === fire button=\"%s\" ===\n", buttonName);
 
-  // Loud warning if the placeholders are still in the binary — easy first-
-  // boot footgun to overlook in a flood of WL_DISCONNECTED messages.
-  if (strcmp(WIFI_SSID, "YOUR_SSID") == 0) {
-    Serial.println("[WIFI] WARNING: WIFI_SSID is still the placeholder; "
-                   "wifi_secrets.ini missing or build_flags not interpolated");
-  }
-
   // Bump CPU to 240 MHz for the duration of this request. The TLS handshake
   // is mbedTLS-bound (ECDHE + ECDSA verify) and roughly scales inverse to
   // clock; expect ~750ms vs ~2200ms at 80 MHz. Scoped here only so other
@@ -188,7 +171,16 @@ void wifiRemoteFire(const char* buttonName) {
                   (unsigned)origMhz);
   }
 
-  if (!associate()) {
+  const WifiConfig* cfg = wifiConfigsGetActive();
+  if (!cfg) {
+    Serial.println("[WIFI] no active Wi-Fi config — go to Wifi page to add one");
+    if (origMhz < 240) setCpuFrequencyMhz(origMhz);
+    Serial.printf("[WIFI] === fire end (%lums, no request) ===\n",
+                  millis() - t0);
+    return;
+  }
+
+  if (!associate(*cfg)) {
     Serial.println("[WIFI] aborting: associate failed");
     teardown();
     if (origMhz < 240) setCpuFrequencyMhz(origMhz);
