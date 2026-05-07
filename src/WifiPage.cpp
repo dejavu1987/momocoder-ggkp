@@ -27,7 +27,7 @@ static void buildItems() {
     labels[i][sizeof(labels[i]) - 1] = 0;
     items[itemCount++] = {labels[i], (uint8_t)WifiItemKind::Saved, i};
   }
-  items[itemCount++] = {"+ Add new...", (uint8_t)WifiItemKind::Add, 0};
+  items[itemCount++] = {"+Add new...", (uint8_t)WifiItemKind::Add, 0};
   if (active >= 0) {
     items[itemCount++] = {"Delete current", (uint8_t)WifiItemKind::Delete, 0};
   }

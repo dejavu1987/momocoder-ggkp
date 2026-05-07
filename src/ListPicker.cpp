@@ -69,7 +69,7 @@ void listPickerRender(const ListPickerView& v) {
     }
 
     char buf[24];
-    snprintf(buf, sizeof(buf), "%c. %s", ROW_LETTER[slot],
+    snprintf(buf, sizeof(buf), "%c.%s", ROW_LETTER[slot],
              v.items[globalIdx].label ? v.items[globalIdx].label : "");
     u8g2.drawStr(0, baseline, buf);
 
