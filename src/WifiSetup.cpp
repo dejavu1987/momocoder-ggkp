@@ -534,8 +534,51 @@ void wifiSetupRender() {
     listPickerRender(scanView);
     return;
   }
-  // Per-state OLED screens (Scanning/WaitingForClient/etc.) are added in
-  // Task 12. Until then, leave the previous frame on the screen.
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_5x7_tr);
+
+  switch (state) {
+    case WifiSetupState::Scanning:
+      u8g2.drawStr(8, 16, "Scanning");
+      u8g2.drawStr(8, 28, "for Wi-Fi...");
+      break;
+    case WifiSetupState::WaitingForClient:
+      u8g2.drawStr(0, 8,  "Join Wi-Fi:");
+      u8g2.drawStr(0, 22, "GGKP-Setup");
+      u8g2.drawStr(0, 40, "192.168.4.1");
+      break;
+    case WifiSetupState::WaitingForSubmit:
+      u8g2.drawStr(0, 8,  "Open browser:");
+      u8g2.drawStr(0, 22, "192.168.4.1");
+      u8g2.drawStr(0, 40, "Enter password");
+      break;
+    case WifiSetupState::Saving:
+      u8g2.drawStr(0, 8,  "Saving...");
+      u8g2.drawStr(0, 22, "Connecting to");
+      u8g2.setFont(u8g2_font_4x6_tr);
+      u8g2.drawStr(0, 38, currentSsid);
+      break;
+    case WifiSetupState::Done:
+      u8g2.drawStr(20, 14, "Saved");
+      u8g2.setFont(u8g2_font_4x6_tr);
+      u8g2.drawStr(0, 32, currentSsid);
+      break;
+    case WifiSetupState::Failed:
+      u8g2.drawStr(8, 14, "Failed:");
+      u8g2.setFont(u8g2_font_4x6_tr);
+      u8g2.drawStr(0, 32, statusMessage);
+      break;
+    default:
+      break;
+  }
+
+  // Cancel hint on every non-Picking, non-Done screen.
+  if (state != WifiSetupState::PickingSsid &&
+      state != WifiSetupState::Done) {
+    u8g2.setFont(u8g2_font_4x6_tr);
+    u8g2.drawStr(0, SCREEN_HEIGHT - 1, "hold A: cancel");
+  }
+  u8g2.sendBuffer();
 }
 
 WifiSetupDigest wifiSetupGetDigest() {
