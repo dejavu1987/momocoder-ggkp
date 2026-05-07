@@ -326,6 +326,7 @@ void printPage() {
 
 void loop(void) {
   updateConnState();
+  wifiSetupTick();
 
   mouseEnabled = (currentPage == Page::Mouse || currentPage == Page::Settings);
 
@@ -352,7 +353,9 @@ void loop(void) {
     delay(DEBOUNCE_MS);
     pressedButton = -1;
   } else if (pressedButton != -1) {
-    if (connState == ConnState::Connected) {
+    if (wifiSetupIsActive()) {
+      wifiSetupHandleButton(pressedButton);
+    } else if (connState == ConnState::Connected) {
       handleButtonPress(currentPage, pressedButton);
     } else {
       handleButtonPressDisconnected(pressedButton);
