@@ -9,6 +9,75 @@
 #include <WiFiClient.h>
 #include <WiFiServer.h>
 
+static const char FORM_HTML_PRE[] PROGMEM =
+  "<!DOCTYPE html><html><head>"
+  "<meta name=viewport content=\"width=device-width,initial-scale=1\">"
+  "<title>GGKP Wi-Fi Setup</title>"
+  "<style>body{font-family:sans-serif;max-width:320px;margin:2em auto;"
+  "padding:0 1em}input[type=password]{width:100%;padding:.5em;"
+  "font-size:1em;box-sizing:border-box}button{width:100%;padding:.7em;"
+  "font-size:1em;margin-top:1em;background:#007aff;color:#fff;"
+  "border:0;border-radius:.5em}.s{font-weight:bold;margin-bottom:1em}"
+  "</style></head><body><h2>Add Wi-Fi to GGKP</h2>"
+  "<div class=s>SSID: ";
+static const char FORM_HTML_MID[] PROGMEM =
+  "</div><form method=POST action=\"/save\">"
+  "<input type=hidden name=ssid value=\"";
+static const char FORM_HTML_POST[] PROGMEM =
+  "\"><label>Password<br><input type=password name=password autofocus "
+  "minlength=8 maxlength=63></label>"
+  "<button type=submit>Save</button></form></body></html>";
+
+static const char SAVED_HTML[] PROGMEM =
+  "<!DOCTYPE html><html><head><title>GGKP</title></head><body>"
+  "<h2>Saved</h2><p>Disconnect from GGKP-Setup. The device is connecting "
+  "to your network now.</p></body></html>";
+
+static int hexNibble(char c) {
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'a' && c <= 'f') return 10 + c - 'a';
+  if (c >= 'A' && c <= 'F') return 10 + c - 'A';
+  return -1;
+}
+
+// In-place URL-decode of a x-www-form-urlencoded value. Returns final length.
+static size_t urldecodeInPlace(char* s) {
+  char* w = s;
+  for (char* r = s; *r; ++r) {
+    if (*r == '+') { *w++ = ' '; }
+    else if (*r == '%' && r[1] && r[2]) {
+      int hi = hexNibble(r[1]), lo = hexNibble(r[2]);
+      if (hi >= 0 && lo >= 0) { *w++ = (char)((hi << 4) | lo); r += 2; }
+      else *w++ = *r;
+    } else *w++ = *r;
+  }
+  *w = 0;
+  return (size_t)(w - s);
+}
+
+// Find a `name=` field in a form-encoded body. Writes value (decoded) into
+// out (max outSz incl NUL). Returns true if found.
+static bool formField(const char* body, const char* name,
+                      char* out, size_t outSz) {
+  size_t nameLen = strlen(name);
+  const char* p = body;
+  while (*p) {
+    if (strncmp(p, name, nameLen) == 0 && p[nameLen] == '=') {
+      const char* v = p + nameLen + 1;
+      const char* end = strchr(v, '&');
+      size_t n = end ? (size_t)(end - v) : strlen(v);
+      if (n >= outSz) n = outSz - 1;
+      memcpy(out, v, n);
+      out[n] = 0;
+      urldecodeInPlace(out);
+      return true;
+    }
+    while (*p && *p != '&') ++p;
+    if (*p == '&') ++p;
+  }
+  return false;
+}
+
 static WifiSetupState state = WifiSetupState::Idle;
 static unsigned long stateEnteredMs = 0;
 static char statusMessage[40] = "";
@@ -39,6 +108,8 @@ static const char* AP_SSID = "GGKP-Setup";
 static const unsigned long SETUP_AP_TIMEOUT_MS = 90UL * 1000UL;
 static WiFiServer httpServer(80);
 static bool       httpStarted = false;
+
+static char submittedPassword[65] = "";
 
 static void bumpCpu() {
   origCpuMhz = getCpuFrequencyMhz();
@@ -162,6 +233,83 @@ void wifiSetupCancel() {
   enterState(WifiSetupState::Idle);
 }
 
+static void sendForm(WiFiClient& cli, const char* ssid) {
+  cli.print(F("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n"
+              "Connection: close\r\n\r\n"));
+  cli.print((__FlashStringHelper*)FORM_HTML_PRE);
+  cli.print(ssid);
+  cli.print((__FlashStringHelper*)FORM_HTML_MID);
+  cli.print(ssid);
+  cli.print((__FlashStringHelper*)FORM_HTML_POST);
+}
+
+static void sendSaved(WiFiClient& cli) {
+  cli.print(F("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n"
+              "Connection: close\r\n\r\n"));
+  cli.print((__FlashStringHelper*)SAVED_HTML);
+}
+
+static void sendRedirect(WiFiClient& cli) {
+  cli.print(F("HTTP/1.1 302 Found\r\nLocation: http://192.168.4.1/\r\n"
+              "Connection: close\r\nContent-Length: 0\r\n\r\n"));
+}
+
+// Read one HTTP request from cli into buf (header + up to bodyMax bytes
+// of body). Returns true if a full request line + headers were read.
+// Body length is capped at bodyMax — fine because our only POST body is
+// "ssid=...&password=..." which is well under 256 bytes.
+static bool readRequest(WiFiClient& cli, char* buf, size_t bufSz,
+                        const char** method, const char** path,
+                        const char** body) {
+  size_t n = 0;
+  unsigned long deadline = millis() + 2000;
+  // Headers
+  while (n < bufSz - 1 && millis() < deadline) {
+    while (cli.available() && n < bufSz - 1) {
+      buf[n++] = (char)cli.read();
+      if (n >= 4 &&
+          buf[n - 4] == '\r' && buf[n - 3] == '\n' &&
+          buf[n - 2] == '\r' && buf[n - 1] == '\n') {
+        goto headersDone;
+      }
+    }
+    delay(2);
+  }
+headersDone:
+  buf[n] = 0;
+  if (n == 0) return false;
+
+  *method = buf;
+  char* sp = strchr(buf, ' ');
+  if (!sp) return false;
+  *sp = 0;
+  *path = sp + 1;
+  char* sp2 = strchr((char*)*path, ' ');
+  if (sp2) *sp2 = 0;
+
+  // Find Content-Length and read body if present.
+  *body = "";
+  const char* clHdr = strstr(sp2 ? sp2 + 1 : buf + n, "Content-Length:");
+  size_t contentLen = 0;
+  if (clHdr) contentLen = (size_t)atoi(clHdr + 15);
+  if (contentLen > 0 && n < bufSz - 1) {
+    size_t off = n;
+    size_t want = contentLen;
+    if (want > bufSz - 1 - off) want = bufSz - 1 - off;
+    deadline = millis() + 2000;
+    while (want > 0 && millis() < deadline) {
+      while (cli.available() && want > 0) {
+        buf[off++] = (char)cli.read();
+        want--;
+      }
+      delay(2);
+    }
+    buf[off] = 0;
+    *body = buf + n;
+  }
+  return true;
+}
+
 void wifiSetupTick() {
   if (state == WifiSetupState::Idle) return;
 
@@ -209,6 +357,65 @@ void wifiSetupTick() {
         stopAp();
         enterState(WifiSetupState::Failed);
       }
+      break;
+    }
+    case WifiSetupState::WaitingForSubmit: {
+      if (millis() - stateEnteredMs > SETUP_AP_TIMEOUT_MS) {
+        strncpy(statusMessage, "setup timeout", sizeof(statusMessage) - 1);
+        stopAp();
+        enterState(WifiSetupState::Failed);
+        break;
+      }
+      WiFiClient cli = httpServer.available();
+      if (!cli) break;
+      static char reqBuf[1024];
+      const char *method = "", *path = "", *body = "";
+      bool ok = readRequest(cli, reqBuf, sizeof(reqBuf),
+                            &method, &path, &body);
+      Serial.printf("[WIFISETUP] http %s %s ok=%d\n", method, path, ok);
+      if (!ok) { cli.stop(); break; }
+
+      // Captive-portal probes from various OSes — redirect to /.
+      if (strcmp(path, "/") != 0 && strcmp(path, "/save") != 0) {
+        sendRedirect(cli);
+        cli.flush();
+        cli.stop();
+        break;
+      }
+
+      if (strcmp(method, "GET") == 0 && strcmp(path, "/") == 0) {
+        sendForm(cli, currentSsid);
+        cli.flush();
+        cli.stop();
+        break;
+      }
+
+      if (strcmp(method, "POST") == 0 && strcmp(path, "/save") == 0) {
+        char pwd[65] = "";
+        bool havePwd = formField(body, "password", pwd, sizeof(pwd));
+        size_t pwdLen = strlen(pwd);
+        if (!havePwd || pwdLen < 8 || pwdLen > 63) {
+          // Re-serve the form. Phone validation should also catch this.
+          sendForm(cli, currentSsid);
+          cli.flush();
+          cli.stop();
+          break;
+        }
+        strncpy(submittedPassword, pwd, sizeof(submittedPassword) - 1);
+        submittedPassword[sizeof(submittedPassword) - 1] = 0;
+        sendSaved(cli);
+        cli.flush();
+        cli.stop();
+        // Tear AP and validate in Saving (Task 11).
+        stopAp();
+        enterState(WifiSetupState::Saving);
+        break;
+      }
+
+      // Unknown method/path — redirect.
+      sendRedirect(cli);
+      cli.flush();
+      cli.stop();
       break;
     }
     case WifiSetupState::Failed: {
