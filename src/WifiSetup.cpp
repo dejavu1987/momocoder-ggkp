@@ -3,6 +3,9 @@
 #include <WiFi.h>
 #include <esp_wifi.h>
 #include <string.h>
+#include "ListPicker.h"
+#include "Keypad.h"
+#include "Display.h"
 
 static WifiSetupState state = WifiSetupState::Idle;
 static unsigned long stateEnteredMs = 0;
@@ -20,6 +23,15 @@ static ScanEntry scanResults[SCAN_MAX];
 static uint8_t   scanCount = 0;
 
 static uint32_t origCpuMhz = 0;
+
+// The scan-pick view reuses the same ListPicker primitive used by the
+// Wifi page itself. Items are built directly from scanResults[].
+static ListPickerItem scanItems[SCAN_MAX + 1];   // +1 for "Cancel" row
+static char           scanLabels[SCAN_MAX][16];
+static ListPickerView scanView;
+static int8_t         pickedScanIdx = -1;        // index into scanResults
+
+enum class ScanItemKind : uint8_t { Net = 0, Cancel = 1 };
 
 static void bumpCpu() {
   origCpuMhz = getCpuFrequencyMhz();
@@ -77,6 +89,17 @@ static void harvestScan(int n) {
   Serial.printf("[WIFISETUP] scan harvested %u networks\n",
                 (unsigned)scanCount);
   WiFi.scanDelete();
+}
+
+static void buildScanItems() {
+  uint16_t n = 0;
+  for (uint8_t i = 0; i < scanCount; ++i) {
+    strncpy(scanLabels[i], scanResults[i].ssid, sizeof(scanLabels[i]) - 1);
+    scanLabels[i][sizeof(scanLabels[i]) - 1] = 0;
+    scanItems[n++] = {scanLabels[i], (uint8_t)ScanItemKind::Net, i};
+  }
+  scanItems[n++] = {"Cancel", (uint8_t)ScanItemKind::Cancel, 0};
+  listPickerInit(scanView, scanItems, n, LIST_PICKER_NO_ACTIVE);
 }
 
 static void enterState(WifiSetupState s) {
@@ -140,9 +163,8 @@ void wifiSetupTick() {
       }
       harvestScan(n);
       restoreCpu();
-      // Stay in Scanning until Task 8 wires up PickingSsid; for now,
-      // log results and bounce to Idle so the device doesn't hang.
-      enterState(WifiSetupState::Idle);
+      buildScanItems();
+      enterState(WifiSetupState::PickingSsid);
       break;
     }
     case WifiSetupState::Failed: {
@@ -156,11 +178,57 @@ void wifiSetupTick() {
   }
 }
 
-void wifiSetupHandleButton(int /*button*/) {
-  // Per-state button handling is added in Tasks 8 & 13.
+void wifiSetupHandleButton(int button) {
+  if (state != WifiSetupState::PickingSsid) {
+    // BTN_A long-press is handled by polling in tick() (Task 13);
+    // taps in non-Idle non-Picking states are ignored.
+    return;
+  }
+  switch (button) {
+    case BTN_A:  listPickerOnSlot(scanView, 0); break;
+    case BTN_B:  listPickerOnSlot(scanView, 1); break;
+    case BTN_C:  listPickerOnSlot(scanView, 2); break;
+    case BTN_D:  listPickerOnSlot(scanView, 3); break;
+    case BTN_LT: listPickerOnLeft(scanView);   break;
+    case BTN_RT: listPickerOnRight(scanView);  break;
+    case BTN_OK: {
+      int32_t idx = listPickerOnOk(scanView);
+      if (idx < 0) return;
+      const ListPickerItem& it = scanItems[idx];
+      if ((ScanItemKind)it.kind == ScanItemKind::Cancel) {
+        wifiSetupCancel();
+        return;
+      }
+      pickedScanIdx = (int8_t)it.userId;
+      strncpy(currentSsid, scanResults[pickedScanIdx].ssid,
+              sizeof(currentSsid) - 1);
+      Serial.printf("[WIFISETUP] picked SSID \"%s\"\n", currentSsid);
+      // Stub: bounce to Idle. Task 9 will go to WaitingForClient.
+      enterState(WifiSetupState::Idle);
+      break;
+    }
+    default: break;
+  }
 }
 
 bool wifiSetupIsActive() { return state != WifiSetupState::Idle; }
 WifiSetupState wifiSetupGetState() { return state; }
 const char* wifiSetupGetStatusMessage() { return statusMessage; }
 const char* wifiSetupGetCurrentSsid() { return currentSsid; }
+
+void wifiSetupRender() {
+  if (state == WifiSetupState::PickingSsid) {
+    listPickerRender(scanView);
+    return;
+  }
+  // Per-state OLED screens (Scanning/WaitingForClient/etc.) are added in
+  // Task 12. Until then, leave the previous frame on the screen.
+}
+
+WifiSetupDigest wifiSetupGetDigest() {
+  WifiSetupDigest d{};
+  d.state = (uint8_t)state;
+  d.pickerPage = scanView.pageIdx;
+  d.highlight  = scanView.highlightSlot;
+  return d;
+}

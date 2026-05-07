@@ -230,6 +230,9 @@ struct DisplayState {
   int8_t   wifiHighlight;
   uint16_t wifiActiveIdx;
   uint16_t wifiCount;
+  uint8_t  setupState;       // (uint8_t)WifiSetupState
+  uint16_t setupPickerPage;  // valid only in PickingSsid
+  int8_t   setupHighlight;   // valid only in PickingSsid
 
   bool operator!=(const DisplayState &o) const {
     return conn != o.conn || page != o.page || scroll != o.scroll ||
@@ -238,7 +241,10 @@ struct DisplayState {
            wifiPickerPage != o.wifiPickerPage ||
            wifiHighlight  != o.wifiHighlight  ||
            wifiActiveIdx  != o.wifiActiveIdx  ||
-           wifiCount      != o.wifiCount;
+           wifiCount      != o.wifiCount      ||
+           setupState     != o.setupState     ||
+           setupPickerPage!= o.setupPickerPage||
+           setupHighlight != o.setupHighlight;
   }
 };
 
@@ -305,16 +311,21 @@ void printPage() {
   if (oledAsleep) return;
   static DisplayState last = {ConnState::Booting, Page::Mouse,
                               false, false, -1, -1,
-                              0xFFFF, -2, 0xFFFF, 0xFFFF};
+                              0xFFFF, -2, 0xFFFF, 0xFFFF,
+                              0xFF, 0xFFFF, -2};
   WifiPageDigest wd = wifiPageGetDigest();
+  WifiSetupDigest sd = wifiSetupGetDigest();
   DisplayState now = {connState, currentPage,
                       scrollEnabled, dragEnabled,
                       mouseSensitivity, mouseMoveDelay,
                       wd.pageIdx, wd.highlightSlot,
-                      wd.activeIdx, wd.count};
+                      wd.activeIdx, wd.count,
+                      sd.state, sd.pickerPage, sd.highlight};
   if (now != last) {
     last = now;
-    if (connState == ConnState::Connected) {
+    if (wifiSetupIsActive()) {
+      wifiSetupRender();
+    } else if (connState == ConnState::Connected) {
       renderPage(now);
     } else if (connState == ConnState::Connecting ||
                connState == ConnState::Discoverable) {

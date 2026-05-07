@@ -37,4 +37,16 @@ const char* wifiSetupGetStatusMessage();
 // SSID currently being added (visible on Saving/Done screens).
 const char* wifiSetupGetCurrentSsid();
 
+// Render the OLED for the current setup state. Caller is main.cpp's
+// printPage() when wifiSetupIsActive() is true.
+void wifiSetupRender();
+
+// Snapshot used by main.cpp's DisplayState repaint-on-change check.
+struct WifiSetupDigest {
+  uint8_t  state;
+  uint16_t pickerPage;
+  int8_t   highlight;
+};
+WifiSetupDigest wifiSetupGetDigest();
+
 #endif // WIFISETUP_H
