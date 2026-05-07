@@ -25,6 +25,7 @@ BLECombo bleCombo("MomoCoderGGKP");
 #include "Icons.h"
 #include "Keypad.h"
 #include "Pages.h"
+#include "WifiConfigs.h"
 
 #define USE_AIR_MOUSE
 
@@ -204,6 +205,7 @@ void setup(void) {
   mpuWake();
 #endif
 
+  wifiConfigsBegin();
   displaySetup(I2C_SDA, I2C_SCL);
 }
 
