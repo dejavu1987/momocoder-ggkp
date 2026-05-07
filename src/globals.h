@@ -3,13 +3,14 @@
 
 #include <BLECombo.h>
 
-constexpr int NUM_PAGES = 4;
+constexpr int NUM_PAGES = 5;
 
 enum class Page : int {
   Mouse = 0,    // air mouse active
   Media = 1,    // keyboard / media keys
   Remote = 2,   // wifi HTTP remote — connect-on-press to momoggkp.vercel.app
-  Settings = 3, // air mouse + sensitivity/delay tuning + BLE re-pairing
+  Wifi = 3,     // saved Wi-Fi configs: pick which one Remote uses
+  Settings = 4, // air mouse + sensitivity/delay tuning + BLE re-pairing
 };
 
 inline Page &operator++(Page &p) {

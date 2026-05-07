@@ -4,6 +4,7 @@
 #include "Icons.h"
 #include "WifiRemote.h"
 #include "Display.h"
+#include "WifiPage.h"
 
 // Page::Mouse — air mouse with click bindings.
 //   A : ESC                UP: nav-prev          B : scroll toggle
@@ -76,10 +77,30 @@ static const Binding settingsBindings[] = {
   {BTN_D,  ICON_TIMER,            {ActionKind::AdjustDelay,  {.delta = +5}}},
 };
 
+// Page::Wifi — saved Wi-Fi configs as a list-picker. The page itself
+// renders the list (see renderPage in main.cpp); these bindings only
+// route button presses through the picker's three-action vocabulary
+// (Slot, Left/Right paginate, Confirm) plus the universal UP/DN nav.
+//   A : row 0 highlight   UP: nav-prev   B : row 1 highlight
+//   LT: page back         OK: confirm    RT: page forward
+//   C : row 2 highlight   DN: nav-next   D : row 3 highlight
+static const Binding wifiBindings[] = {
+  {BTN_A,  0, {ActionKind::ListPickerSlot,    {.slot = 0}}},
+  {BTN_UP, 0, {ActionKind::NavPrev,           {}}},
+  {BTN_B,  0, {ActionKind::ListPickerSlot,    {.slot = 1}}},
+  {BTN_LT, 0, {ActionKind::ListPickerLeft,    {}}},
+  {BTN_OK, 0, {ActionKind::ListPickerConfirm, {}}},
+  {BTN_RT, 0, {ActionKind::ListPickerRight,   {}}},
+  {BTN_C,  0, {ActionKind::ListPickerSlot,    {.slot = 2}}},
+  {BTN_DN, 0, {ActionKind::NavNext,           {}}},
+  {BTN_D,  0, {ActionKind::ListPickerSlot,    {.slot = 3}}},
+};
+
 const PageDef pageDefs[NUM_PAGES] = {
   {Page::Mouse,    mouseBindings,    9},
   {Page::Media,    mediaBindings,    9},
   {Page::Remote,   remoteBindings,   9},
+  {Page::Wifi,     wifiBindings,     9},
   {Page::Settings, settingsBindings, 9},
 };
 
@@ -161,6 +182,30 @@ void executeAction(const Action& a) {
     break;
   case ActionKind::CycleBrightness:
     displayCycleBrightness();
+    break;
+  case ActionKind::ListPickerSlot:
+    switch (currentPage) {
+      case Page::Wifi: wifiPageOnSlot(a.p.slot); break;
+      default: break;
+    }
+    break;
+  case ActionKind::ListPickerLeft:
+    switch (currentPage) {
+      case Page::Wifi: wifiPageOnLeft(); break;
+      default: break;
+    }
+    break;
+  case ActionKind::ListPickerRight:
+    switch (currentPage) {
+      case Page::Wifi: wifiPageOnRight(); break;
+      default: break;
+    }
+    break;
+  case ActionKind::ListPickerConfirm:
+    switch (currentPage) {
+      case Page::Wifi: wifiPageOnConfirm(); break;
+      default: break;
+    }
     break;
   }
 }

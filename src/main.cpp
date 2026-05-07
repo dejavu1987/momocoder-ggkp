@@ -26,6 +26,8 @@ BLECombo bleCombo("MomoCoderGGKP");
 #include "Keypad.h"
 #include "Pages.h"
 #include "WifiConfigs.h"
+#include "WifiPage.h"
+#include "WifiSetup.h"
 
 #define USE_AIR_MOUSE
 
@@ -206,6 +208,7 @@ void setup(void) {
 #endif
 
   wifiConfigsBegin();
+  wifiPageRefresh();
   displaySetup(I2C_SDA, I2C_SCL);
 }
 
@@ -223,11 +226,19 @@ struct DisplayState {
   bool drag;
   int sensitivity;
   int moveDelay;
+  uint16_t wifiPickerPage;
+  int8_t   wifiHighlight;
+  uint16_t wifiActiveIdx;
+  uint16_t wifiCount;
 
   bool operator!=(const DisplayState &o) const {
     return conn != o.conn || page != o.page || scroll != o.scroll ||
            drag != o.drag || sensitivity != o.sensitivity ||
-           moveDelay != o.moveDelay;
+           moveDelay != o.moveDelay ||
+           wifiPickerPage != o.wifiPickerPage ||
+           wifiHighlight  != o.wifiHighlight  ||
+           wifiActiveIdx  != o.wifiActiveIdx  ||
+           wifiCount      != o.wifiCount;
   }
 };
 
@@ -254,6 +265,10 @@ void renderStatusScreen(ConnState s) {
 }
 
 void renderPage(const DisplayState &s) {
+  if (s.page == Page::Wifi) {
+    wifiPageRender();
+    return;
+  }
   const PageDef &def = pageDefs[static_cast<int>(s.page)];
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_open_iconic_all_2x_t);
@@ -289,10 +304,14 @@ void renderPage(const DisplayState &s) {
 void printPage() {
   if (oledAsleep) return;
   static DisplayState last = {ConnState::Booting, Page::Mouse,
-                              false, false, -1, -1};
-  DisplayState now = {connState,       currentPage,
-                      scrollEnabled,   dragEnabled,
-                      mouseSensitivity, mouseMoveDelay};
+                              false, false, -1, -1,
+                              0xFFFF, -2, 0xFFFF, 0xFFFF};
+  WifiPageDigest wd = wifiPageGetDigest();
+  DisplayState now = {connState, currentPage,
+                      scrollEnabled, dragEnabled,
+                      mouseSensitivity, mouseMoveDelay,
+                      wd.pageIdx, wd.highlightSlot,
+                      wd.activeIdx, wd.count};
   if (now != last) {
     last = now;
     if (connState == ConnState::Connected) {

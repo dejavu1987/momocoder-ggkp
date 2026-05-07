@@ -19,6 +19,10 @@ enum class ActionKind : uint8_t {
   ForgetBonds,   // forgetAllBonds()
   WifiRequest,   // wifiRemoteFire(p.urlPart) — connect-on-press HTTP GET
   CycleBrightness, // displayCycleBrightness() — low→mid→high
+  ListPickerSlot,    // p.slot = 0..3 — A/B/C/D row select on a list page
+  ListPickerLeft,    // LT — page back in current page's list-picker
+  ListPickerRight,   // RT — page forward
+  ListPickerConfirm, // OK — commit highlighted row to current page's onConfirm
 };
 
 struct Action {
@@ -29,6 +33,7 @@ struct Action {
     uint8_t               mouseBtn;
     int8_t                delta;
     const char*           urlPart;
+    uint8_t               slot;     // ListPickerSlot row 0..3
   } p;
 };
 
