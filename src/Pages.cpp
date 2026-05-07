@@ -29,7 +29,7 @@ static const uint8_t KEY_F_LOWER = 'f';
 // Page::Media — keyboard / media keys.
 //   A : ESC          UP: nav-prev    B : 'f' (fullscreen)
 //   LT: left arrow   OK: play/pause  RT: right arrow
-//   C : vol up       DN: nav-next    D : vol down
+//   C : vol down     DN: nav-next    D : vol up
 static const Binding mediaBindings[] = {
   {BTN_A,  ICON_CIRCLE_X,            {ActionKind::Key,      {.keyPtr   = &KEY_ESC}}},
   {BTN_UP, ICON_CHEVRON_TOP,         {ActionKind::NavPrev,  {}}},
@@ -37,9 +37,9 @@ static const Binding mediaBindings[] = {
   {BTN_LT, ICON_MEDIA_SKIP_BACKWARD, {ActionKind::Key,      {.keyPtr   = &KEY_LEFT_ARROW}}},
   {BTN_OK, ICON_MEDIA_PLAY,          {ActionKind::MediaKey, {.mediaPtr = &KEY_MEDIA_PLAY_PAUSE}}},
   {BTN_RT, ICON_MEDIA_SKIP_FORWARD,  {ActionKind::Key,      {.keyPtr   = &KEY_RIGHT_ARROW}}},
-  {BTN_C,  ICON_VOLUME_HIGH,         {ActionKind::MediaKey, {.mediaPtr = &KEY_MEDIA_VOLUME_UP}}},
+  {BTN_C,  ICON_VOLUME_LOW,          {ActionKind::MediaKey, {.mediaPtr = &KEY_MEDIA_VOLUME_DOWN}}},
   {BTN_DN, ICON_CHEVRON_BOTTOM,      {ActionKind::NavNext,  {}}},
-  {BTN_D,  ICON_VOLUME_LOW,          {ActionKind::MediaKey, {.mediaPtr = &KEY_MEDIA_VOLUME_DOWN}}},
+  {BTN_D,  ICON_VOLUME_HIGH,         {ActionKind::MediaKey, {.mediaPtr = &KEY_MEDIA_VOLUME_UP}}},
 };
 
 // Page::Remote — Wi-Fi HTTP remote (connect-on-press to momoggkp.vercel.app).
