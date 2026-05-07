@@ -113,6 +113,9 @@ static bool       httpStarted = false;
 
 static char submittedPassword[65] = "";
 
+static unsigned long btnAPressStartMs = 0;
+static bool          btnAWasDown = false;
+
 static void bumpCpu() {
   origCpuMhz = getCpuFrequencyMhz();
   if (origCpuMhz < 240) {
@@ -314,6 +317,22 @@ headersDone:
 
 void wifiSetupTick() {
   if (state == WifiSetupState::Idle) return;
+
+  // Long-press BTN_A (>= 1 s while held) cancels back to Idle from any
+  // non-Idle state. Cheaper than re-IRQ-wiring; only polled during setup.
+  bool down = (digitalRead(BTN_A) == LOW);
+  if (down && !btnAWasDown) {
+    btnAWasDown = true;
+    btnAPressStartMs = millis();
+  } else if (!down && btnAWasDown) {
+    btnAWasDown = false;
+  } else if (down && btnAWasDown &&
+             (millis() - btnAPressStartMs) >= 1000) {
+    Serial.println("[WIFISETUP] long-press A: cancel");
+    btnAWasDown = false;
+    wifiSetupCancel();
+    return;
+  }
 
   switch (state) {
     case WifiSetupState::Scanning: {

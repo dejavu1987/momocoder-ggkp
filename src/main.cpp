@@ -410,6 +410,7 @@ void loop(void) {
   updateLed(connState);
 
   if (!oledAsleep && connState != ConnState::Booting &&
+      !wifiSetupIsActive() &&
       millis() - lastButtonPressTime >= OLED_IDLE_MS) {
     Serial.print("[AUTO] OLED power save (idle ");
     Serial.print(OLED_IDLE_MS);
@@ -418,7 +419,7 @@ void loop(void) {
     oledAsleep = true;
   }
 
-  if (connState != ConnState::Booting &&
+  if (connState != ConnState::Booting && !wifiSetupIsActive() &&
       millis() - lastButtonPressTime >= idleTimeoutMs(connState)) {
     Serial.print("[AUTO] Deep sleep (idle ");
     Serial.print(idleTimeoutMs(connState));
