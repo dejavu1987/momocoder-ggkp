@@ -220,6 +220,8 @@ void wifiSetupBegin() {
   }
   statusMessage[0] = 0;
   currentSsid[0] = 0;
+  pickedScanIdx = -1;
+  memset(submittedPassword, 0, sizeof(submittedPassword));
   enterState(WifiSetupState::Scanning);
 }
 
@@ -235,6 +237,9 @@ void wifiSetupCancel() {
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);
   restoreCpu();
+  // Wipe credentials in case cancel happened mid-WaitingForSubmit/Saving.
+  memset(submittedPassword, 0, sizeof(submittedPassword));
+  pickedScanIdx = -1;
   enterState(WifiSetupState::Idle);
 }
 
