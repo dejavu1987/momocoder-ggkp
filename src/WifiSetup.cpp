@@ -6,6 +6,8 @@
 #include "ListPicker.h"
 #include "Keypad.h"
 #include "Display.h"
+#include <WiFiClient.h>
+#include <WiFiServer.h>
 
 static WifiSetupState state = WifiSetupState::Idle;
 static unsigned long stateEnteredMs = 0;
@@ -32,6 +34,11 @@ static ListPickerView scanView;
 static int8_t         pickedScanIdx = -1;        // index into scanResults
 
 enum class ScanItemKind : uint8_t { Net = 0, Cancel = 1 };
+
+static const char* AP_SSID = "GGKP-Setup";
+static const unsigned long SETUP_AP_TIMEOUT_MS = 90UL * 1000UL;
+static WiFiServer httpServer(80);
+static bool       httpStarted = false;
 
 static void bumpCpu() {
   origCpuMhz = getCpuFrequencyMhz();
@@ -102,6 +109,27 @@ static void buildScanItems() {
   listPickerInit(scanView, scanItems, n, LIST_PICKER_NO_ACTIVE);
 }
 
+static void startAp() {
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_AP);
+  bool ok = WiFi.softAP(AP_SSID, /*password*/nullptr);
+  Serial.printf("[WIFISETUP] softAP \"%s\" %s, IP=%s\n", AP_SSID,
+                ok ? "up" : "FAILED",
+                WiFi.softAPIP().toString().c_str());
+  httpServer.begin();
+  httpStarted = true;
+}
+
+static void stopAp() {
+  if (httpStarted) {
+    httpServer.stop();
+    httpStarted = false;
+  }
+  WiFi.softAPdisconnect(true);
+  WiFi.mode(WIFI_OFF);
+  Serial.println("[WIFISETUP] AP stopped");
+}
+
 static void enterState(WifiSetupState s) {
   Serial.printf("[WIFISETUP] %u -> %u\n",
                 (unsigned)state, (unsigned)s);
@@ -123,6 +151,11 @@ void wifiSetupCancel() {
   if (state == WifiSetupState::Idle) return;
   Serial.println("[WIFISETUP] cancel");
   WiFi.scanDelete();
+  if (httpStarted) {
+    httpServer.stop();
+    httpStarted = false;
+  }
+  WiFi.softAPdisconnect(true);
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);
   restoreCpu();
@@ -167,6 +200,17 @@ void wifiSetupTick() {
       enterState(WifiSetupState::PickingSsid);
       break;
     }
+    case WifiSetupState::WaitingForClient: {
+      if (WiFi.softAPgetStationNum() > 0) {
+        Serial.println("[WIFISETUP] client associated to setup AP");
+        enterState(WifiSetupState::WaitingForSubmit);
+      } else if (millis() - stateEnteredMs > SETUP_AP_TIMEOUT_MS) {
+        strncpy(statusMessage, "setup timeout", sizeof(statusMessage) - 1);
+        stopAp();
+        enterState(WifiSetupState::Failed);
+      }
+      break;
+    }
     case WifiSetupState::Failed: {
       if (millis() - stateEnteredMs > 3000) {
         enterState(WifiSetupState::Idle);
@@ -203,8 +247,8 @@ void wifiSetupHandleButton(int button) {
       strncpy(currentSsid, scanResults[pickedScanIdx].ssid,
               sizeof(currentSsid) - 1);
       Serial.printf("[WIFISETUP] picked SSID \"%s\"\n", currentSsid);
-      // Stub: bounce to Idle. Task 9 will go to WaitingForClient.
-      enterState(WifiSetupState::Idle);
+      startAp();
+      enterState(WifiSetupState::WaitingForClient);
       break;
     }
     default: break;
