@@ -56,14 +56,15 @@ void listPickerRender(const ListPickerView& v) {
     uint32_t globalIdx = (uint32_t)v.pageIdx * LIST_PICKER_ROWS + slot;
     if (globalIdx >= v.count) break;
 
-    const int rowY = slot * 12;        // 0, 12, 24, 36 — each row is 12 px tall
-    const int baseline = rowY + 9;     // ~bottom of 6x10 ascender row
+    const int rowY = slot * 11;        // 0, 11, 22, 33 — leaves 4 px footer
+                                       // (44–47) for the page indicator
+    const int baseline = rowY + 9;     // 6x10 baseline within an 11 px row
     const bool highlighted = (v.highlightSlot == slot);
     const bool active = (globalIdx == v.activeIdx);
 
     if (highlighted) {
       u8g2.setDrawColor(1);
-      u8g2.drawBox(0, rowY, SCREEN_WIDTH, 12);
+      u8g2.drawBox(0, rowY, SCREEN_WIDTH, 11);
       u8g2.setDrawColor(0);
     }
 
@@ -73,7 +74,7 @@ void listPickerRender(const ListPickerView& v) {
     u8g2.drawStr(0, baseline, buf);
 
     if (active) {
-      u8g2.drawDisc(SCREEN_WIDTH - 3, rowY + 6, 1);
+      u8g2.drawDisc(SCREEN_WIDTH - 3, rowY + 5, 1);
     }
 
     if (highlighted) u8g2.setDrawColor(1);
