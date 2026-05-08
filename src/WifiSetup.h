@@ -46,6 +46,7 @@ struct WifiSetupDigest {
   uint8_t  state;
   uint16_t pickerPage;
   int8_t   highlight;
+  uint8_t  showQr;
 };
 WifiSetupDigest wifiSetupGetDigest();
 

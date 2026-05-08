@@ -232,6 +232,7 @@ struct DisplayState {
   uint8_t  setupState;       // (uint8_t)WifiSetupState
   uint16_t setupPickerPage;  // valid only in PickingSsid
   int8_t   setupHighlight;   // valid only in PickingSsid
+  uint8_t  setupShowQr;      // QR overlay toggle in WaitingForClient/Submit
 
   bool operator!=(const DisplayState &o) const {
     return conn != o.conn || page != o.page || scroll != o.scroll ||
@@ -243,7 +244,8 @@ struct DisplayState {
            wifiCount      != o.wifiCount      ||
            setupState     != o.setupState     ||
            setupPickerPage!= o.setupPickerPage||
-           setupHighlight != o.setupHighlight;
+           setupHighlight != o.setupHighlight ||
+           setupShowQr    != o.setupShowQr;
   }
 };
 
@@ -311,7 +313,7 @@ void printPage() {
   static DisplayState last = {ConnState::Booting, Page::Mouse,
                               false, false, -1, -1,
                               0xFFFF, -2, 0xFFFF, 0xFFFF,
-                              0xFF, 0xFFFF, -2};
+                              0xFF, 0xFFFF, -2, 0xFF};
   WifiPageDigest wd = wifiPageGetDigest();
   WifiSetupDigest sd = wifiSetupGetDigest();
   DisplayState now = {connState, currentPage,
@@ -319,7 +321,8 @@ void printPage() {
                       mouseSensitivity, mouseMoveDelay,
                       wd.pageIdx, wd.highlightSlot,
                       wd.activeIdx, wd.count,
-                      sd.state, sd.pickerPage, sd.highlight};
+                      sd.state, sd.pickerPage, sd.highlight,
+                      sd.showQr};
   if (now != last) {
     last = now;
     if (wifiSetupIsActive()) {
