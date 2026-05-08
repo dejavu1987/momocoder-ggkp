@@ -2,6 +2,7 @@
 #include "Keypad.h"
 #include <BLECombo.h>
 #include "Icons.h"
+#include "Settings.h"
 #include "WifiRemote.h"
 #include "Display.h"
 #include "WifiPage.h"
@@ -157,20 +158,26 @@ void executeAction(const Action& a) {
   case ActionKind::NavNext:
     ++currentPage;
     break;
-  case ActionKind::AdjustSens:
+  case ActionKind::AdjustSens: {
+    int prev = mouseSensitivity;
     if (a.p.delta < 0) {
       if (mouseSensitivity > 10) mouseSensitivity += a.p.delta;
     } else {
       mouseSensitivity += a.p.delta;
     }
+    if (mouseSensitivity != prev) settingsSave();
     break;
-  case ActionKind::AdjustDelay:
+  }
+  case ActionKind::AdjustDelay: {
+    int prev = mouseMoveDelay;
     if (a.p.delta < 0) {
       if (mouseMoveDelay > 5) mouseMoveDelay += a.p.delta;
     } else {
       mouseMoveDelay += a.p.delta;
     }
+    if (mouseMoveDelay != prev) settingsSave();
     break;
+  }
   case ActionKind::EnterPairing:
     enterPairingMode();
     break;

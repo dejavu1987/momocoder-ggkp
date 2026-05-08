@@ -1,4 +1,5 @@
 #include "Display.h"
+#include "Settings.h"
 #include <Arduino.h>
 #include <Wire.h>
 
@@ -13,6 +14,7 @@ void displaySetup(int sda, int scl) {
   u8g2.setBusClock(400000);
   u8g2.begin();
   Wire.setPins(sda, scl);
+  currentBrightness = settingsGetBrightness();
   u8g2.setContrast(currentBrightness);
 
   u8g2.clearBuffer();
@@ -37,5 +39,7 @@ void displayCycleBrightness() {
   else if (currentBrightness <= BRIGHTNESS_MID + 5)   next = BRIGHTNESS_HIGH;
   else                                                next = BRIGHTNESS_LOW;
   displaySetBrightness(next);
+  settingsSetBrightness(next);
+  settingsSave();
   Serial.printf("[OLED] brightness -> %u\n", (unsigned)next);
 }

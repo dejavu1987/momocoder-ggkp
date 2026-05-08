@@ -25,6 +25,7 @@ BLECombo bleCombo("MomoCoderGGKP");
 #include "Icons.h"
 #include "Keypad.h"
 #include "Pages.h"
+#include "Settings.h"
 #include "WifiConfigs.h"
 #include "WifiPage.h"
 #include "WifiSetup.h"
@@ -58,9 +59,6 @@ static unsigned long idleTimeoutMs(ConnState s) {
 constexpr unsigned long DISCONNECT_TIMEOUT_MS = 1000;
 constexpr unsigned long DEEP_SLEEP_HOLD_MS = 2000;
 constexpr unsigned long SCROLL_PAUSE_MS = 50;
-
-int mouseSensitivity = 300;
-int mouseMoveDelay = 5;
 
 struct LedPulse {
   unsigned long onMs;
@@ -208,6 +206,7 @@ void setup(void) {
 #endif
 
   wifiConfigsBegin();
+  settingsBegin();
   wifiPageRefresh();
   displaySetup(I2C_SDA, I2C_SCL);
 }
