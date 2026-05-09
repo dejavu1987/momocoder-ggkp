@@ -128,6 +128,19 @@ const Binding* findBinding(Page page, int button) {
   return nullptr;
 }
 
+// Apply a signed delta to `value`, refusing decrements when already at/below
+// `floor`. Saves to NVS only if the value actually changed. Note the floor is
+// a gate, not a hard clamp: e.g. with floor=10, value=15, delta=-10 → value=5.
+static void adjustClamped(int& value, int delta, int floor) {
+  int prev = value;
+  if (delta < 0) {
+    if (value > floor) value += delta;
+  } else {
+    value += delta;
+  }
+  if (value != prev) settingsSave();
+}
+
 void executeAction(const Action& a) {
   switch (a.kind) {
   case ActionKind::None:
@@ -158,26 +171,12 @@ void executeAction(const Action& a) {
   case ActionKind::NavNext:
     ++currentPage;
     break;
-  case ActionKind::AdjustSens: {
-    int prev = mouseSensitivity;
-    if (a.p.delta < 0) {
-      if (mouseSensitivity > 10) mouseSensitivity += a.p.delta;
-    } else {
-      mouseSensitivity += a.p.delta;
-    }
-    if (mouseSensitivity != prev) settingsSave();
+  case ActionKind::AdjustSens:
+    adjustClamped(mouseSensitivity, a.p.delta, 10);
     break;
-  }
-  case ActionKind::AdjustDelay: {
-    int prev = mouseMoveDelay;
-    if (a.p.delta < 0) {
-      if (mouseMoveDelay > 5) mouseMoveDelay += a.p.delta;
-    } else {
-      mouseMoveDelay += a.p.delta;
-    }
-    if (mouseMoveDelay != prev) settingsSave();
+  case ActionKind::AdjustDelay:
+    adjustClamped(mouseMoveDelay, a.p.delta, 5);
     break;
-  }
   case ActionKind::EnterPairing:
     enterPairingMode();
     break;

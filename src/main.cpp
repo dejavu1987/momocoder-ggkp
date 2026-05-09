@@ -135,22 +135,26 @@ void updateConnState() {
   }
 }
 
+// Spin-wait up to DISCONNECT_TIMEOUT_MS for the active peer (if any) to drop.
+// Shared prologue between enterPairingMode() and forgetAllBonds().
+static void disconnectActivePeer() {
+  auto *server = NimBLEDevice::getServer();
+  if (!server || server->getConnectedCount() == 0) return;
+  auto info = server->getPeerInfo(0);
+  server->disconnect(info.getConnHandle());
+  unsigned long deadline = millis() + DISCONNECT_TIMEOUT_MS;
+  while (server->getConnectedCount() > 0 && millis() < deadline) {
+    delay(20);
+  }
+}
+
 // Drop the active connection (if any) and re-advertise so a new host can pair.
 // Existing bonds stay intact — wiping them here is what was forcing macOS into
 // the "Forget Device + re-pair every time" loop, because the host kept its
 // bond while the ESP32 lost its half. Use forgetAllBonds() for a true reset.
 void enterPairingMode() {
   Serial.println("[INFO]: Entering BLE pairing mode");
-
-  auto *server = NimBLEDevice::getServer();
-  if (server && server->getConnectedCount() > 0) {
-    auto info = server->getPeerInfo(0);
-    server->disconnect(info.getConnHandle());
-    unsigned long deadline = millis() + DISCONNECT_TIMEOUT_MS;
-    while (server->getConnectedCount() > 0 && millis() < deadline) {
-      delay(20);
-    }
-  }
+  disconnectActivePeer();
   transitionTo(ConnState::Discoverable);
 }
 
@@ -158,15 +162,7 @@ void enterPairingMode() {
 // "Forget Device" and pair again. Wired to BTN_A on the Settings page.
 void forgetAllBonds() {
   Serial.println("[INFO]: Wiping all BLE bonds");
-  auto *server = NimBLEDevice::getServer();
-  if (server && server->getConnectedCount() > 0) {
-    auto info = server->getPeerInfo(0);
-    server->disconnect(info.getConnHandle());
-    unsigned long deadline = millis() + DISCONNECT_TIMEOUT_MS;
-    while (server->getConnectedCount() > 0 && millis() < deadline) {
-      delay(20);
-    }
-  }
+  disconnectActivePeer();
   NimBLEDevice::deleteAllBonds();
   transitionTo(ConnState::Discoverable);
 }

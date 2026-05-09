@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include <esp_wifi.h>
 #include <string.h>
+#include "HwUtil.h"
 #include "ListPicker.h"
 #include "Keypad.h"
 #include "Display.h"
@@ -95,8 +96,6 @@ constexpr int SCAN_MAX = 32;
 static ScanEntry scanResults[SCAN_MAX];
 static uint8_t   scanCount = 0;
 
-static uint32_t origCpuMhz = 0;
-
 // The scan-pick view reuses the same ListPicker primitive used by the
 // Wifi page itself. Items are built directly from scanResults[].
 static ListPickerItem scanItems[SCAN_MAX + 1];   // +1 for "Cancel" row
@@ -149,23 +148,8 @@ static const uint8_t qr_setup_42[] = {
   0xFF,0x3F,0x3F,0xFF,0xC0,0x00, 0xFF,0x3F,0x3F,0xFF,0xC0,0x00,
 };
 
-static void bumpCpu() {
-  origCpuMhz = getCpuFrequencyMhz();
-  if (origCpuMhz < 240) {
-    setCpuFrequencyMhz(240);
-    Serial.printf("[WIFISETUP] cpu %u -> 240 MHz\n", (unsigned)origCpuMhz);
-  }
-}
-static void restoreCpu() {
-  if (origCpuMhz && origCpuMhz < 240) {
-    setCpuFrequencyMhz(origCpuMhz);
-    Serial.printf("[WIFISETUP] cpu restored to %u MHz\n", (unsigned)origCpuMhz);
-  }
-  origCpuMhz = 0;
-}
-
 static void startScan() {
-  bumpCpu();
+  cpuBumpTo(240, "WIFISETUP");
   WiFi.mode(WIFI_STA);
   // async=true so we can stay responsive; scanComplete() polls below.
   int rc = WiFi.scanNetworks(/*async*/true, /*show_hidden*/false);
@@ -268,9 +252,8 @@ void wifiSetupCancel() {
     httpStarted = false;
   }
   WiFi.softAPdisconnect(true);
-  WiFi.disconnect(true);
-  WiFi.mode(WIFI_OFF);
-  restoreCpu();
+  wifiPowerOff();
+  cpuRestore("WIFISETUP");
   // Wipe credentials in case cancel happened mid-WaitingForSubmit/Saving.
   memset(submittedPassword, 0, sizeof(submittedPassword));
   pickedScanIdx = -1;
@@ -403,7 +386,7 @@ void wifiSetupTick() {
         return;
       }
       harvestScan(n);
-      restoreCpu();
+      cpuRestore("WIFISETUP");
       buildScanItems();
       enterState(WifiSetupState::PickingSsid);
       break;
@@ -490,7 +473,7 @@ void wifiSetupTick() {
           break;
         }
         const ScanEntry& e = scanResults[pickedScanIdx];
-        bumpCpu();
+        cpuBumpTo(240, "WIFISETUP");
         WiFi.mode(WIFI_STA);
         WiFi.begin(e.ssid, submittedPassword, (int32_t)e.channel,
                    const_cast<uint8_t*>(e.bssid));
@@ -506,9 +489,8 @@ void wifiSetupTick() {
         memcpy(cfg.bssid, e.bssid, 6);
         cfg.channel = e.channel;
         int8_t idx = wifiConfigsAddOrUpdate(cfg, /*setAsActive*/true);
-        WiFi.disconnect(true);
-        WiFi.mode(WIFI_OFF);
-        restoreCpu();
+        wifiPowerOff();
+        cpuRestore("WIFISETUP");
         // Wipe submitted password from RAM after persist.
         memset(submittedPassword, 0, sizeof(submittedPassword));
         if (idx < 0) {
@@ -523,9 +505,8 @@ void wifiSetupTick() {
       }
       if (millis() - stateEnteredMs > 8000) {
         Serial.printf("[WIFISETUP] validation timeout (status=%d)\n", (int)s);
-        WiFi.disconnect(true);
-        WiFi.mode(WIFI_OFF);
-        restoreCpu();
+        wifiPowerOff();
+        cpuRestore("WIFISETUP");
         memset(submittedPassword, 0, sizeof(submittedPassword));
         strncpy(statusMessage, "wrong password", sizeof(statusMessage) - 1);
         enterState(WifiSetupState::Failed);

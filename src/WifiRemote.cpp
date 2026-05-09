@@ -4,6 +4,7 @@
 #include <WiFiClientSecure.h>
 #include <esp_wifi.h>
 
+#include "HwUtil.h"
 #include "WifiConfigs.h"
 
 // SSID/password/BSSID/channel are read per-press from WifiConfigs (NVS).
@@ -77,15 +78,7 @@ static bool associate(const WifiConfig& cfg) {
 static void teardown() {
   unsigned long t0 = millis();
   Serial.println("[WIFI] teardown begin");
-  // Both arduino calls below end up in esp_wifi_deinit(), which races on
-  // back-to-back presses and logs "wifi:timeout when WiFi un-init, type=4"
-  // async — cosmetic, every request still completes. We tried bypassing
-  // via raw esp_wifi_disconnect()+stop() to silence it, but that wedged
-  // arduino's internal WiFi state machine and broke the next associate
-  // (NO_SHIELD). The arduino-managed path is the only one WiFi.begin()
-  // recovers from cleanly.
-  WiFi.disconnect(true);
-  WiFi.mode(WIFI_OFF);
+  wifiPowerOff();
   Serial.printf("[WIFI] teardown done in %lums\n", millis() - t0);
 }
 
@@ -160,47 +153,36 @@ void wifiRemoteFire(const char* buttonName) {
   unsigned long t0 = millis();
   Serial.printf("[WIFI] === fire button=\"%s\" ===\n", buttonName);
 
-  // Bump CPU to 240 MHz for the duration of this request. The TLS handshake
-  // is mbedTLS-bound (ECDHE + ECDSA verify) and roughly scales inverse to
-  // clock; expect ~750ms vs ~2200ms at 80 MHz. Scoped here only so other
-  // pages keep their 80 MHz idle profile. Restored before returning.
-  uint32_t origMhz = getCpuFrequencyMhz();
-  if (origMhz < 240) {
-    setCpuFrequencyMhz(240);
-    Serial.printf("[WIFI] cpu %u -> 240 MHz for handshake\n",
-                  (unsigned)origMhz);
-  }
+  // The TLS handshake is mbedTLS-bound (ECDHE + ECDSA verify) and roughly
+  // scales inverse to clock; expect ~750ms vs ~2200ms at 80 MHz. Scoped here
+  // only so other pages keep their 80 MHz idle profile.
+  cpuBumpTo(240, "WIFI");
 
+  bool fired = false;
+  int  code  = 0;
   const WifiConfig* cfg = wifiConfigsGetActive();
   if (!cfg) {
     Serial.println("[WIFI] no active Wi-Fi config — go to Wifi page to add one");
-    if (origMhz < 240) setCpuFrequencyMhz(origMhz);
-    Serial.printf("[WIFI] === fire end (%lums, no request) ===\n",
-                  millis() - t0);
-    return;
-  }
-
-  if (!associate(*cfg)) {
+  } else if (!associate(*cfg)) {
     Serial.println("[WIFI] aborting: associate failed");
     teardown();
-    if (origMhz < 240) setCpuFrequencyMhz(origMhz);
+  } else {
+    fired = true;
+    code = doGet(buttonName);
+    // One retry on transport failure (TLS hiccup, transient network drop).
+    if (code <= 0) {
+      Serial.printf("[WIFI] retry: previous attempt returned %d\n", code);
+      code = doGet(buttonName);
+    }
+    teardown();
+  }
+
+  cpuRestore("WIFI");
+  if (fired) {
+    Serial.printf("[WIFI] === fire end (%lums, final code=%d) ===\n",
+                  millis() - t0, code);
+  } else {
     Serial.printf("[WIFI] === fire end (%lums, no request) ===\n",
                   millis() - t0);
-    return;
   }
-
-  int code = doGet(buttonName);
-  // One retry on transport failure (TLS hiccup, transient network drop).
-  if (code <= 0) {
-    Serial.printf("[WIFI] retry: previous attempt returned %d\n", code);
-    code = doGet(buttonName);
-  }
-
-  teardown();
-  if (origMhz < 240) {
-    setCpuFrequencyMhz(origMhz);
-    Serial.printf("[WIFI] cpu restored to %u MHz\n", (unsigned)origMhz);
-  }
-  Serial.printf("[WIFI] === fire end (%lums, final code=%d) ===\n",
-                millis() - t0, code);
 }
