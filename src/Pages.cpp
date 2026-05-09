@@ -2,25 +2,32 @@
 #include "Keypad.h"
 #include <BLECombo.h>
 #include "Icons.h"
+#include "ListPicker.h"
 #include "Settings.h"
 #include "WifiRemote.h"
 #include "Display.h"
 #include "WifiPage.h"
+
+// Every page's bindings array is indexed by slot 0..8 in row-major order:
+//   slot 0 = A   slot 1 = UP   slot 2 = B
+//   slot 3 = LT  slot 4 = OK   slot 5 = RT
+//   slot 6 = C   slot 7 = DN   slot 8 = D
+// findBinding() exploits this to resolve a button to its binding in O(1).
 
 // Page::Mouse — air mouse with click bindings.
 //   A : ESC                UP: nav-prev          B : scroll toggle
 //   LT: left click         OK: right click       RT: browser back
 //   C : drag toggle        DN: nav-next          D : browser forward
 static const Binding mouseBindings[] = {
-  {BTN_A,  ICON_CIRCLE_X,        {ActionKind::Key,          {.keyPtr = &KEY_ESC}}},
-  {BTN_UP, ICON_CHEVRON_TOP,     {ActionKind::NavPrev,      {}}},
-  {BTN_B,  ICON_LOOP,            {ActionKind::ToggleScroll, {}}},
-  {BTN_LT, ICON_TARGET,          {ActionKind::MouseClick,   {.mouseBtn = MOUSE_LEFT}}},
-  {BTN_OK, ICON_MENU,            {ActionKind::MouseClick,   {.mouseBtn = MOUSE_RIGHT}}},
-  {BTN_RT, ICON_ACTION_UNDO,     {ActionKind::MouseClick,   {.mouseBtn = MOUSE_BACK}}},
-  {BTN_C,  ICON_MOVE,            {ActionKind::ToggleDrag,   {}}},
-  {BTN_DN, ICON_CHEVRON_BOTTOM,  {ActionKind::NavNext,      {}}},
-  {BTN_D,  ICON_ACTION_REDO,     {ActionKind::MouseClick,   {.mouseBtn = MOUSE_FORWARD}}},
+  {ICON_CIRCLE_X,        {ActionKind::Key,          {.keyPtr = &KEY_ESC}}},
+  {ICON_CHEVRON_TOP,     {ActionKind::NavPrev,      {}}},
+  {ICON_LOOP,            {ActionKind::ToggleScroll, {}}},
+  {ICON_TARGET,          {ActionKind::MouseClick,   {.mouseBtn = MOUSE_LEFT}}},
+  {ICON_MENU,            {ActionKind::MouseClick,   {.mouseBtn = MOUSE_RIGHT}}},
+  {ICON_ACTION_UNDO,     {ActionKind::MouseClick,   {.mouseBtn = MOUSE_BACK}}},
+  {ICON_MOVE,            {ActionKind::ToggleDrag,   {}}},
+  {ICON_CHEVRON_BOTTOM,  {ActionKind::NavNext,      {}}},
+  {ICON_ACTION_REDO,     {ActionKind::MouseClick,   {.mouseBtn = MOUSE_FORWARD}}},
 };
 
 // 'f' is a literal byte — wrap once at file scope so the table can take its
@@ -32,15 +39,15 @@ static const uint8_t KEY_F_LOWER = 'f';
 //   LT: left arrow   OK: play/pause  RT: right arrow
 //   C : vol down     DN: nav-next    D : vol up
 static const Binding mediaBindings[] = {
-  {BTN_A,  ICON_CIRCLE_X,            {ActionKind::Key,      {.keyPtr   = &KEY_ESC}}},
-  {BTN_UP, ICON_CHEVRON_TOP,         {ActionKind::NavPrev,  {}}},
-  {BTN_B,  ICON_FULLSCREEN_ENTER,    {ActionKind::Key,      {.keyPtr   = &KEY_F_LOWER}}},
-  {BTN_LT, ICON_MEDIA_SKIP_BACKWARD, {ActionKind::Key,      {.keyPtr   = &KEY_LEFT_ARROW}}},
-  {BTN_OK, ICON_MEDIA_PLAY,          {ActionKind::MediaKey, {.mediaPtr = &KEY_MEDIA_PLAY_PAUSE}}},
-  {BTN_RT, ICON_MEDIA_SKIP_FORWARD,  {ActionKind::Key,      {.keyPtr   = &KEY_RIGHT_ARROW}}},
-  {BTN_C,  ICON_VOLUME_LOW,          {ActionKind::MediaKey, {.mediaPtr = &KEY_MEDIA_VOLUME_DOWN}}},
-  {BTN_DN, ICON_CHEVRON_BOTTOM,      {ActionKind::NavNext,  {}}},
-  {BTN_D,  ICON_VOLUME_HIGH,         {ActionKind::MediaKey, {.mediaPtr = &KEY_MEDIA_VOLUME_UP}}},
+  {ICON_CIRCLE_X,            {ActionKind::Key,      {.keyPtr   = &KEY_ESC}}},
+  {ICON_CHEVRON_TOP,         {ActionKind::NavPrev,  {}}},
+  {ICON_FULLSCREEN_ENTER,    {ActionKind::Key,      {.keyPtr   = &KEY_F_LOWER}}},
+  {ICON_MEDIA_SKIP_BACKWARD, {ActionKind::Key,      {.keyPtr   = &KEY_LEFT_ARROW}}},
+  {ICON_MEDIA_PLAY,          {ActionKind::MediaKey, {.mediaPtr = &KEY_MEDIA_PLAY_PAUSE}}},
+  {ICON_MEDIA_SKIP_FORWARD,  {ActionKind::Key,      {.keyPtr   = &KEY_RIGHT_ARROW}}},
+  {ICON_VOLUME_LOW,          {ActionKind::MediaKey, {.mediaPtr = &KEY_MEDIA_VOLUME_DOWN}}},
+  {ICON_CHEVRON_BOTTOM,      {ActionKind::NavNext,  {}}},
+  {ICON_VOLUME_HIGH,         {ActionKind::MediaKey, {.mediaPtr = &KEY_MEDIA_VOLUME_UP}}},
 };
 
 // Page::Remote — Wi-Fi HTTP remote (connect-on-press to momoggkp.vercel.app).
@@ -49,33 +56,33 @@ static const Binding mediaBindings[] = {
 //   LT: "left"       OK: "ok"        RT: "right"
 //   C : "C"          DN: nav-next    D : "D"
 static const Binding remoteBindings[] = {
-  {BTN_A,  ICON_BOOKMARK,        {ActionKind::WifiRequest, {.urlPart = "A"}}},
-  {BTN_UP, ICON_CHEVRON_TOP,     {ActionKind::NavPrev,     {}}},
-  {BTN_B,  ICON_BADGE,           {ActionKind::WifiRequest, {.urlPart = "B"}}},
-  {BTN_LT, ICON_ARROW_LEFT,      {ActionKind::WifiRequest, {.urlPart = "left"}}},
-  {BTN_OK, ICON_CIRCLE_CHECK,    {ActionKind::WifiRequest, {.urlPart = "ok"}}},
-  {BTN_RT, ICON_ARROW_RIGHT,     {ActionKind::WifiRequest, {.urlPart = "right"}}},
-  {BTN_C,  ICON_FLAG,            {ActionKind::WifiRequest, {.urlPart = "C"}}},
-  {BTN_DN, ICON_CHEVRON_BOTTOM,  {ActionKind::NavNext,     {}}},
-  {BTN_D,  ICON_TAG,             {ActionKind::WifiRequest, {.urlPart = "D"}}},
+  {ICON_BOOKMARK,        {ActionKind::WifiRequest, {.urlPart = "A"}}},
+  {ICON_CHEVRON_TOP,     {ActionKind::NavPrev,     {}}},
+  {ICON_BADGE,           {ActionKind::WifiRequest, {.urlPart = "B"}}},
+  {ICON_ARROW_LEFT,      {ActionKind::WifiRequest, {.urlPart = "left"}}},
+  {ICON_CIRCLE_CHECK,    {ActionKind::WifiRequest, {.urlPart = "ok"}}},
+  {ICON_ARROW_RIGHT,     {ActionKind::WifiRequest, {.urlPart = "right"}}},
+  {ICON_FLAG,            {ActionKind::WifiRequest, {.urlPart = "C"}}},
+  {ICON_CHEVRON_BOTTOM,  {ActionKind::NavNext,     {}}},
+  {ICON_TAG,             {ActionKind::WifiRequest, {.urlPart = "D"}}},
 };
 
 // Page::Settings — air-mouse tuning + BLE re-pairing. Bottom row icons exist
 // but are not drawn: renderPage() replaces the bottom row with a "S:NNN D:NN"
 // overlay. Bindings still execute when those buttons are pressed.
-//   A : forget bonds      UP: nav-prev          B : (none)
+//   A : forget bonds      UP: nav-prev          B : cycle brightness
 //   LT: sens -10          OK: enter pairing     RT: sens +10
 //   C : delay -5          DN: nav-next          D : delay +5
 static const Binding settingsBindings[] = {
-  {BTN_A,  ICON_TRASH,            {ActionKind::ForgetBonds,      {}}},
-  {BTN_UP, ICON_CHEVRON_TOP,      {ActionKind::NavPrev,          {}}},
-  {BTN_B,  ICON_SUN,              {ActionKind::CycleBrightness,  {}}},
-  {BTN_LT, ICON_MINUS,            {ActionKind::AdjustSens,   {.delta = -10}}},
-  {BTN_OK, ICON_BLUETOOTH,        {ActionKind::EnterPairing, {}}},
-  {BTN_RT, ICON_PLUS,             {ActionKind::AdjustSens,   {.delta = +10}}},
-  {BTN_C,  ICON_BOLT,             {ActionKind::AdjustDelay,  {.delta = -5}}},
-  {BTN_DN, ICON_CHEVRON_BOTTOM,   {ActionKind::NavNext,      {}}},
-  {BTN_D,  ICON_TIMER,            {ActionKind::AdjustDelay,  {.delta = +5}}},
+  {ICON_TRASH,            {ActionKind::ForgetBonds,      {}}},
+  {ICON_CHEVRON_TOP,      {ActionKind::NavPrev,          {}}},
+  {ICON_SUN,              {ActionKind::CycleBrightness,  {}}},
+  {ICON_MINUS,            {ActionKind::AdjustSens,   {.delta = -10}}},
+  {ICON_BLUETOOTH,        {ActionKind::EnterPairing, {}}},
+  {ICON_PLUS,             {ActionKind::AdjustSens,   {.delta = +10}}},
+  {ICON_BOLT,             {ActionKind::AdjustDelay,  {.delta = -5}}},
+  {ICON_CHEVRON_BOTTOM,   {ActionKind::NavNext,      {}}},
+  {ICON_TIMER,            {ActionKind::AdjustDelay,  {.delta = +5}}},
 };
 
 // Page::Wifi — saved Wi-Fi configs as a list-picker. The page itself
@@ -86,15 +93,15 @@ static const Binding settingsBindings[] = {
 //   LT: page back         OK: confirm    RT: page forward
 //   C : row 2 highlight   DN: nav-next   D : row 3 highlight
 static const Binding wifiBindings[] = {
-  {BTN_A,  0, {ActionKind::ListPickerSlot,    {.slot = 0}}},
-  {BTN_UP, 0, {ActionKind::NavPrev,           {}}},
-  {BTN_B,  0, {ActionKind::ListPickerSlot,    {.slot = 1}}},
-  {BTN_LT, 0, {ActionKind::ListPickerLeft,    {}}},
-  {BTN_OK, 0, {ActionKind::ListPickerConfirm, {}}},
-  {BTN_RT, 0, {ActionKind::ListPickerRight,   {}}},
-  {BTN_C,  0, {ActionKind::ListPickerSlot,    {.slot = 2}}},
-  {BTN_DN, 0, {ActionKind::NavNext,           {}}},
-  {BTN_D,  0, {ActionKind::ListPickerSlot,    {.slot = 3}}},
+  {0, {ActionKind::ListPickerSlot,    {.slot = 0}}},
+  {0, {ActionKind::NavPrev,           {}}},
+  {0, {ActionKind::ListPickerSlot,    {.slot = 1}}},
+  {0, {ActionKind::ListPickerLeft,    {}}},
+  {0, {ActionKind::ListPickerConfirm, {}}},
+  {0, {ActionKind::ListPickerRight,   {}}},
+  {0, {ActionKind::ListPickerSlot,    {.slot = 2}}},
+  {0, {ActionKind::NavNext,           {}}},
+  {0, {ActionKind::ListPickerSlot,    {.slot = 3}}},
 };
 
 const PageDef pageDefs[NUM_PAGES] = {
@@ -121,11 +128,21 @@ int slotForButton(int button) {
 }
 
 const Binding* findBinding(Page page, int button) {
+  int slot = slotForButton(button);
+  if (slot < 0) return nullptr;
   const PageDef& def = pageDefs[static_cast<int>(page)];
-  for (uint8_t i = 0; i < def.count; ++i) {
-    if (def.bindings[i].button == button) return &def.bindings[i];
+  if ((uint8_t)slot >= def.count) return nullptr;
+  return &def.bindings[slot];
+}
+
+// The current page's list-picker view, or nullptr if the page doesn't
+// host one. Used by executeAction()'s ListPicker* arms to drive the
+// generic primitives without per-page wrapper functions.
+static ListPickerView* currentListPickerView() {
+  switch (currentPage) {
+    case Page::Wifi: return wifiPageGetView();
+    default:         return nullptr;
   }
-  return nullptr;
 }
 
 // Apply a signed delta to `value`, refusing decrements when already at/below
@@ -190,24 +207,16 @@ void executeAction(const Action& a) {
     displayCycleBrightness();
     break;
   case ActionKind::ListPickerSlot:
-    switch (currentPage) {
-      case Page::Wifi: wifiPageOnSlot(a.p.slot); break;
-      default: break;
-    }
+    if (auto* v = currentListPickerView()) listPickerOnSlot(*v, a.p.slot);
     break;
   case ActionKind::ListPickerLeft:
-    switch (currentPage) {
-      case Page::Wifi: wifiPageOnLeft(); break;
-      default: break;
-    }
+    if (auto* v = currentListPickerView()) listPickerOnLeft(*v);
     break;
   case ActionKind::ListPickerRight:
-    switch (currentPage) {
-      case Page::Wifi: wifiPageOnRight(); break;
-      default: break;
-    }
+    if (auto* v = currentListPickerView()) listPickerOnRight(*v);
     break;
   case ActionKind::ListPickerConfirm:
+    // Confirm dispatches by item kind, so it stays page-specific.
     switch (currentPage) {
       case Page::Wifi: wifiPageOnConfirm(); break;
       default: break;

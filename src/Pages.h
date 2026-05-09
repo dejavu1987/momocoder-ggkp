@@ -37,8 +37,11 @@ struct Action {
   } p;
 };
 
+// One Binding per slot; arrays are indexed by slot 0..8 in row-major order:
+//   slot 0 = A   slot 1 = UP   slot 2 = B
+//   slot 3 = LT  slot 4 = OK   slot 5 = RT
+//   slot 6 = C   slot 7 = DN   slot 8 = D
 struct Binding {
-  int      button;   // BTN_* pin number
   uint16_t icon;     // ICON_* glyph index, 0 = none
   Action   action;
 };
@@ -51,11 +54,8 @@ struct PageDef {
 
 extern const PageDef pageDefs[NUM_PAGES];
 
-// Slot index 0..8 in row-major order, matching the current 3x3 layout:
-//   A (0)  | UP(1) | B (2)
-//   LT(3)  | OK(4) | RT(5)
-//   C (6)  | DN(7) | D (8)
-// Returns -1 for unknown buttons.
+// Slot index 0..8 for a BTN_* pin number, matching the row-major layout
+// above. Returns -1 for unknown buttons.
 int slotForButton(int button);
 
 const Binding* findBinding(Page page, int button);

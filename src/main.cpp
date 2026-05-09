@@ -30,21 +30,7 @@ BLECombo bleCombo("MomoCoderGGKP");
 #include "WifiPage.h"
 #include "WifiSetup.h"
 
-#define USE_AIR_MOUSE
-
-#ifdef USE_AIR_MOUSE
 #include "AirMouse.h"
-#endif
-// #include <ArduinoJson.h> // Using ArduinoJson to read and write config files
-
-// #include <WiFi.h> // Wifi support
-
-// #include <AsyncTCP.h>          //Async Webserver support header
-// #include <ESPAsyncWebServer.h> //Async Webserver support header
-
-// #include <ESPmDNS.h> // DNS functionality
-
-// AsyncWebServer webserver(80);
 
 // Loop timing
 constexpr unsigned long DEBOUNCE_MS = 200;
@@ -195,11 +181,9 @@ void setup(void) {
   Serial.println("[INFO]: Starting BLE");
   Wire.begin(I2C_SDA, I2C_SCL);
 
-#ifdef USE_AIR_MOUSE
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_6, LOW);
   Serial.println("[INFO]: Starting AirMouse");
   mpuWake();
-#endif
 
   wifiConfigsBegin();
   settingsBegin();
@@ -278,13 +262,11 @@ void renderPage(const DisplayState &s) {
 
   // Page::Settings replaces the bottom row with a "S:NNN D:NN" overlay,
   // so suppress glyphs in slots 6..8.
-  const int maxSlot = (s.page == Page::Settings) ? 5 : 8;
+  const uint8_t maxSlot = (s.page == Page::Settings) ? 5 : 8;
 
-  for (uint8_t i = 0; i < def.count; ++i) {
-    const Binding &b = def.bindings[i];
+  for (uint8_t slot = 0; slot < def.count && slot <= maxSlot; ++slot) {
+    const Binding &b = def.bindings[slot];
     if (b.icon == 0) continue;
-    int slot = slotForButton(b.button);
-    if (slot < 0 || slot > maxSlot) continue;
     int col = slot % 3;
     int row = slot / 3;
     u8g2.drawGlyph(col * 21, row * 16 + 16, b.icon);
@@ -403,8 +385,6 @@ void loop(void) {
       delay(mouseMoveDelay);
     }
   }
-  // LED is fully driven by connState now; advertising restart is handled
-  // by transitionTo()'s entry actions.
   updateLed(connState);
 
   if (!oledAsleep && connState != ConnState::Booting &&

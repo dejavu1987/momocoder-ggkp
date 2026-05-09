@@ -41,9 +41,7 @@ void wifiPageRefresh() {
   listPickerInit(view, items, itemCount, activeIdx);
 }
 
-void wifiPageOnSlot(uint8_t slot)  { listPickerOnSlot(view, slot); }
-void wifiPageOnLeft()              { listPickerOnLeft(view); }
-void wifiPageOnRight()             { listPickerOnRight(view); }
+ListPickerView* wifiPageGetView() { return &view; }
 
 void wifiPageOnConfirm() {
   int32_t idx = listPickerOnOk(view);

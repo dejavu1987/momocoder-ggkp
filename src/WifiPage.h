@@ -15,10 +15,13 @@ enum class WifiItemKind : uint8_t {
 // once at boot, and again whenever configs change.
 void wifiPageRefresh();
 
-// Button hooks (called from executeAction in Pages.cpp).
-void wifiPageOnSlot(uint8_t slot);
-void wifiPageOnLeft();
-void wifiPageOnRight();
+// Picker view backing the Wifi page. Exposed so executeAction() can drive
+// it through the generic listPickerOn{Slot,Left,Right} primitives without
+// per-page wrapper functions.
+ListPickerView* wifiPageGetView();
+
+// Confirm dispatches by item kind (Saved/Add/Delete) so it stays page-
+// specific — listPickerOnOk only returns the picked index.
 void wifiPageOnConfirm();
 
 // Render the wifi page (called from renderPage in main.cpp).
