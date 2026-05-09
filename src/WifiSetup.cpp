@@ -544,11 +544,20 @@ void wifiSetupHandleButton(int button) {
     // taps in non-Idle non-Picking states are ignored.
     return;
   }
+  // A/B/C/D map to picker rows 0/1/2/3 — same convention as the wifi page's
+  // ListPickerSlot bindings in Pages.cpp.
+  int row = -1;
   switch (button) {
-    case BTN_A:  listPickerOnSlot(scanView, 0); break;
-    case BTN_B:  listPickerOnSlot(scanView, 1); break;
-    case BTN_C:  listPickerOnSlot(scanView, 2); break;
-    case BTN_D:  listPickerOnSlot(scanView, 3); break;
+    case BTN_A: row = 0; break;
+    case BTN_B: row = 1; break;
+    case BTN_C: row = 2; break;
+    case BTN_D: row = 3; break;
+  }
+  if (row >= 0) {
+    listPickerOnSlot(scanView, (uint8_t)row);
+    return;
+  }
+  switch (button) {
     case BTN_LT: listPickerOnLeft(scanView);   break;
     case BTN_RT: listPickerOnRight(scanView);  break;
     case BTN_OK: {
